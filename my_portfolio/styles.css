@@ -1084,6 +1084,18 @@ body {
     box-shadow: none;
 }
 
+.contact-method a {
+    color: #000000;
+    text-decoration: none;
+    font-size: 12px;
+    transition: all 0.1s ease;
+}
+
+.contact-method a:hover {
+    color: #CC9900;
+    text-decoration: underline;
+}
+
 .contact-form {
     background-color: #FFE135;
     padding: 2rem;
