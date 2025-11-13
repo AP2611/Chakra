@@ -311,6 +311,12 @@ body {
     align-items: center;
 }
 
+.hero-image {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
 /* Game Boy Console Container */
 .gameboy-console {
     position: relative;
@@ -325,6 +331,8 @@ body {
         0px 8px 15px rgba(0, 0, 0, 0.15);
     animation: float 4s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
     filter: drop-shadow(0 8px 25px rgba(0, 0, 0, 0.2));
+    z-index: 10;
+    position: relative;
 }
 
 .gameboy-console::before {
@@ -370,26 +378,50 @@ body {
     0% {
         transform: translateY(0px) rotate(0deg);
     }
+    6.25% {
+        transform: translateY(-2px) rotate(0.1deg);
+    }
     12.5% {
-        transform: translateY(-5px) rotate(0.2deg);
+        transform: translateY(-4px) rotate(0.2deg);
+    }
+    18.75% {
+        transform: translateY(-6px) rotate(0.3deg);
     }
     25% {
-        transform: translateY(-10px) rotate(0.5deg);
+        transform: translateY(-8px) rotate(0.4deg);
+    }
+    31.25% {
+        transform: translateY(-10px) rotate(0.45deg);
     }
     37.5% {
-        transform: translateY(-12px) rotate(0.3deg);
+        transform: translateY(-12px) rotate(0.5deg);
+    }
+    43.75% {
+        transform: translateY(-13px) rotate(0.4deg);
     }
     50% {
         transform: translateY(-15px) rotate(0deg);
     }
+    56.25% {
+        transform: translateY(-13px) rotate(-0.4deg);
+    }
     62.5% {
-        transform: translateY(-12px) rotate(-0.3deg);
+        transform: translateY(-12px) rotate(-0.5deg);
+    }
+    68.75% {
+        transform: translateY(-10px) rotate(-0.45deg);
     }
     75% {
-        transform: translateY(-10px) rotate(-0.5deg);
+        transform: translateY(-8px) rotate(-0.4deg);
+    }
+    81.25% {
+        transform: translateY(-6px) rotate(-0.3deg);
     }
     87.5% {
-        transform: translateY(-5px) rotate(-0.2deg);
+        transform: translateY(-4px) rotate(-0.2deg);
+    }
+    93.75% {
+        transform: translateY(-2px) rotate(-0.1deg);
     }
     100% {
         transform: translateY(0px) rotate(0deg);
