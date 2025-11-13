@@ -7,7 +7,7 @@ A retro-styled, responsive portfolio website showcasing skills, projects, and ex
 - **🎮 1990s Game Boy Design**: Authentic retro gaming aesthetics with bright yellow and dark yellow color scheme
 - **🖱️ Custom Game Boy Cursor**: Crosshair cursor inspired by classic Game Boy interface
 - **📝 Large Clear Typography**: Easy-to-read monospace font with larger text sizes
-- **🟡 Bright Game Boy Colors**: Yellow (#FFE135), Dark Yellow (#CC9900), Light Yellow (#FFF2B3), and Black
+- **🟡 Bright Game Boy Colors**: Yellow (#FFE135), Dark Yellow (#FFF2B3), Light Yellow (#FFF2B3), and Black
 - **✨ Retro Animations**: Classic gaming-style hover effects and transitions
 - **📱 Responsive Layout**: Optimized for desktop, tablet, and mobile devices
 - **🎯 Interactive Elements**: Game Boy-style button interactions and animations
@@ -39,7 +39,7 @@ A retro-styled, responsive portfolio website showcasing skills, projects, and ex
 
 ### Color Palette
 - **🟡 Bright Yellow**: #FFE135 - Primary background and accent color
-- **🟤 Dark Yellow**: #CC9900 - Navigation and secondary elements
+- **🟤 Dark Yellow**: #FFF2B3 - Navigation and secondary elements
 - **🟨 Light Yellow**: #FFF2B3 - Card backgrounds and highlights
 - **⚫ Pure Black**: #000000 - Text and borders
 - **⚪ Pure White**: #FFFFFF - Not used (maintains Game Boy authenticity)

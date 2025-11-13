@@ -16,10 +16,10 @@ body {
     background-color: #FFE135;
     cursor: url('data:image/svg+xml;utf8,<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><rect width="24" height="24" fill="%23FFE135" stroke="%23000" stroke-width="2"/><rect x="11" y="2" width="2" height="20" fill="%23000"/><rect x="2" y="11" width="20" height="2" fill="%23000"/><circle cx="12" cy="12" r="2" fill="%23CC9900"/><circle cx="12" cy="12" r="1" fill="%23000"/></svg>') 12 12, pointer;
     background-image:
-        linear-gradient(45deg, #CC9900 25%, transparent 25%),
-        linear-gradient(-45deg, #CC9900 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, #CC9900 75%),
-        linear-gradient(-45deg, transparent 75%, #CC9900 75%);
+        linear-gradient(45deg, #FFF2B3 25%, transparent 25%),
+        linear-gradient(-45deg, #FFF2B3 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #FFF2B3 75%),
+        linear-gradient(-45deg, transparent 75%, #FFF2B3 75%);
     background-size: 8px 8px;
     background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
 }
@@ -43,7 +43,7 @@ body {
     position: relative;
     text-align: center;
     box-shadow: 
-        inset -2px -2px 0px #CC9900,
+        inset -2px -2px 0px #FFF2B3,
         inset 2px 2px 0px #FFF2B3;
     transition: all 0.1s ease;
     font-size: 14px;
@@ -55,13 +55,13 @@ body {
     background-color: #FFF2B3;
     box-shadow: 
         inset -2px -2px 0px #FFE135,
-        inset 2px 2px 0px #CC9900;
+        inset 2px 2px 0px #FFF2B3;
     transform: translate(1px, 1px);
 }
 
 .gb-btn:active {
     box-shadow: 
-        inset 2px 2px 0px #CC9900,
+        inset 2px 2px 0px #FFF2B3,
         inset -2px -2px 0px #FFF2B3;
     transform: translate(2px, 2px);
 }
@@ -71,7 +71,7 @@ body {
     position: fixed;
     top: 0;
     width: 100%;
-    background-color: #CC9900;
+    background-color: #FFF2B3;
     border-bottom: 4px solid #000000;
     box-shadow: 0 4px 0px #000000;
     z-index: 1000;
@@ -110,7 +110,7 @@ body {
     background-color: #FFE135;
     border: 2px solid #000000;
     box-shadow: 
-        inset -2px -2px 0px #CC9900,
+        inset -2px -2px 0px #FFF2B3,
         inset 2px 2px 0px #FFF2B3;
     transition: all 0.1s ease;
     text-transform: uppercase;
@@ -120,7 +120,7 @@ body {
     background-color: #FFF2B3;
     box-shadow: 
         inset -2px -2px 0px #FFE135,
-        inset 2px 2px 0px #CC9900;
+        inset 2px 2px 0px #FFF2B3;
     transform: translate(1px, 1px);
 }
 
@@ -187,7 +187,7 @@ body {
     padding: 1rem;
     border: 3px solid #000000;
     box-shadow:
-        inset -2px -2px 0px #CC9900,
+        inset -2px -2px 0px #FFF2B3,
         inset 2px 2px 0px #FFF2B3;
 }
 
@@ -230,7 +230,7 @@ body {
     padding: 1rem;
     border: 3px solid #000000;
     box-shadow:
-        inset -2px -2px 0px #CC9900,
+        inset -2px -2px 0px #FFF2B3,
         inset 2px 2px 0px #FFF2B3;
 }
 
@@ -254,7 +254,7 @@ body {
     text-transform: uppercase;
     background-color: #FFE135;
     box-shadow: 
-        inset -2px -2px 0px #CC9900,
+        inset -2px -2px 0px #FFF2B3,
         inset 2px 2px 0px #FFF2B3;
 }
 
@@ -262,7 +262,7 @@ body {
     background-color: #FFF2B3;
     box-shadow: 
         inset -2px -2px 0px #FFE135,
-        inset 2px 2px 0px #CC9900;
+        inset 2px 2px 0px #FFF2B3;
     transform: translate(1px, 1px);
 }
 
@@ -291,7 +291,7 @@ body {
     text-decoration: none;
     transition: all 0.1s ease;
     box-shadow: 
-        inset -2px -2px 0px #CC9900,
+        inset -2px -2px 0px #FFF2B3,
         inset 2px 2px 0px #FFF2B3;
     font-size: 20px;
     font-weight: bold;
@@ -301,7 +301,7 @@ body {
     background-color: #FFF2B3;
     box-shadow: 
         inset -2px -2px 0px #FFE135,
-        inset 2px 2px 0px #CC9900;
+        inset 2px 2px 0px #FFF2B3;
     transform: translate(1px, 1px);
 }
 
@@ -311,15 +311,161 @@ body {
     align-items: center;
 }
 
+/* Game Boy Console Container */
+.gameboy-console {
+    position: relative;
+    background: linear-gradient(145deg, #FFF2B3, #B38600);
+    border: 8px solid #000000;
+    border-radius: 20px 20px 25px 25px;
+    padding: 2rem;
+    box-shadow:
+        inset -4px -4px 0px #B38600,
+        inset 4px 4px 0px #E6B800,
+        0px 15px 30px rgba(0, 0, 0, 0.25),
+        0px 8px 15px rgba(0, 0, 0, 0.15);
+    animation: float 4s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+    filter: drop-shadow(0 8px 25px rgba(0, 0, 0, 0.2));
+}
+
+.gameboy-console::before {
+    content: '';
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 8px;
+    background: #000000;
+    border-radius: 4px;
+    box-shadow: 0 2px 0px #666666;
+}
+
+.gameboy-console::after {
+    content: '';
+    position: absolute;
+    top: 35px;
+    right: 20px;
+    width: 12px;
+    height: 12px;
+    background: #FF4444;
+    border: 2px solid #000000;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(255, 68, 68, 0.6);
+}
+
 .profile-card {
     background-color: #FFE135;
-    border: 4px solid #000000;
-    padding: 2rem;
+    border: 6px solid #000000;
+    border-radius: 8px;
+    padding: 1.5rem;
     text-align: center;
-    box-shadow: 
-        inset -2px -2px 0px #CC9900,
-        inset 2px 2px 0px #FFF2B3,
-        4px 4px 0px #000000;
+    position: relative;
+    box-shadow:
+        inset -3px -3px 0px #FFF2B3,
+        inset 3px 3px 0px #FFF2B3,
+        0px 8px 15px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0px) rotate(0deg);
+    }
+    12.5% {
+        transform: translateY(-5px) rotate(0.2deg);
+    }
+    25% {
+        transform: translateY(-10px) rotate(0.5deg);
+    }
+    37.5% {
+        transform: translateY(-12px) rotate(0.3deg);
+    }
+    50% {
+        transform: translateY(-15px) rotate(0deg);
+    }
+    62.5% {
+        transform: translateY(-12px) rotate(-0.3deg);
+    }
+    75% {
+        transform: translateY(-10px) rotate(-0.5deg);
+    }
+    87.5% {
+        transform: translateY(-5px) rotate(-0.2deg);
+    }
+    100% {
+        transform: translateY(0px) rotate(0deg);
+    }
+}
+
+/* Game Boy Controller Buttons */
+.gameboy-console .gameboy-controls {
+    position: absolute;
+    bottom: 15px;
+    right: 25px;
+    display: flex;
+    gap: 8px;
+}
+
+.gameboy-dpad {
+    position: absolute;
+    bottom: 15px;
+    left: 25px;
+    width: 40px;
+    height: 40px;
+    background: #000000;
+    border: 3px solid #333333;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gameboy-dpad::before,
+.gameboy-dpad::after {
+    content: '';
+    position: absolute;
+    background: #666666;
+}
+
+.gameboy-dpad::before {
+    width: 30px;
+    height: 6px;
+}
+
+.gameboy-dpad::after {
+    width: 6px;
+    height: 30px;
+}
+
+.gameboy-btn {
+    width: 16px;
+    height: 16px;
+    background: #FFE135;
+    border: 2px solid #000000;
+    border-radius: 50%;
+    box-shadow: inset 1px 1px 0px #FFF2B3, inset -1px -1px 0px #FFF2B3;
+}
+
+.gameboy-btn-a {
+    background: #FF6B6B;
+    box-shadow: inset 1px 1px 0px #FFB3B3, inset -1px -1px 0px #CC4444;
+}
+
+.gameboy-btn-b {
+    background: #4ECDC4;
+    box-shadow: inset 1px 1px 0px #B3F0EB, inset -1px -1px 0px #2D8F86;
+}
+
+/* Game Boy Screen Glare Effect */
+.profile-card::before {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    background: linear-gradient(45deg, transparent 60%, rgba(255, 255, 255, 0.1) 80%, transparent 100%);
+    border-radius: 4px;
+    pointer-events: none;
 }
 
 .profile-avatar {
@@ -351,7 +497,7 @@ body {
     border: 2px solid #000000;
     box-shadow: 
         inset -2px -2px 0px #FFE135,
-        inset 2px 2px 0px #CC9900;
+        inset 2px 2px 0px #FFF2B3;
 }
 
 .stat-number {
@@ -377,7 +523,7 @@ body {
     padding: 1rem;
     border: 4px solid #000000;
     box-shadow:
-        inset -2px -2px 0px #CC9900,
+        inset -2px -2px 0px #FFF2B3,
         inset 2px 2px 0px #FFF2B3;
 }
 
@@ -415,7 +561,7 @@ body {
     padding: 2rem;
     border: 3px solid #000000;
     box-shadow: 
-        inset -2px -2px 0px #CC9900,
+        inset -2px -2px 0px #FFF2B3,
         inset 2px 2px 0px #FFF2B3;
 }
 
@@ -436,7 +582,7 @@ body {
     text-align: center;
     transition: all 0.1s ease;
     box-shadow: 
-        inset -2px -2px 0px #CC9900,
+        inset -2px -2px 0px #FFF2B3,
         inset 2px 2px 0px #FFF2B3;
 }
 
@@ -445,7 +591,7 @@ body {
     background-color: #FFF2B3;
     box-shadow: 
         inset -2px -2px 0px #FFE135,
-        inset 2px 2px 0px #CC9900;
+        inset 2px 2px 0px #FFF2B3;
 }
 
 .highlight-card i {
@@ -488,7 +634,7 @@ body {
     border: 4px solid #000000;
     box-shadow: 
         inset -2px -2px 0px #FFE135,
-        inset 2px 2px 0px #CC9900;
+        inset 2px 2px 0px #FFF2B3;
     transition: all 0.1s ease;
 }
 
@@ -587,7 +733,7 @@ body {
     padding: 2rem;
     border: 4px solid #000000;
     box-shadow: 
-        inset -2px -2px 0px #CC9900,
+        inset -2px -2px 0px #FFF2B3,
         inset 2px 2px 0px #FFF2B3;
 }
 
@@ -645,7 +791,7 @@ body {
     border: 4px solid #000000;
     box-shadow: 
         inset -2px -2px 0px #FFE135,
-        inset 2px 2px 0px #CC9900;
+        inset 2px 2px 0px #FFF2B3;
     transition: all 0.1s ease;
 }
 
@@ -763,7 +909,7 @@ body {
     padding: 2rem;
     border: 3px solid #000000;
     box-shadow:
-        inset -2px -2px 0px #CC9900,
+        inset -2px -2px 0px #FFF2B3,
         inset 2px 2px 0px #FFF2B3;
 }
 
@@ -780,7 +926,7 @@ body {
     padding: 2rem;
     border: 4px solid #000000;
     box-shadow: 
-        inset -2px -2px 0px #CC9900,
+        inset -2px -2px 0px #FFF2B3,
         inset 2px 2px 0px #FFF2B3;
     transition: all 0.1s ease;
     height: fit-content;
@@ -791,7 +937,7 @@ body {
     background-color: #FFF2B3;
     box-shadow: 
         inset -2px -2px 0px #FFE135,
-        inset 2px 2px 0px #CC9900;
+        inset 2px 2px 0px #FFF2B3;
 }
 
 .medium-header {
@@ -851,7 +997,7 @@ body {
     gap: 1rem;
     transition: all 0.1s ease;
     box-shadow: 
-        inset -2px -2px 0px #CC9900,
+        inset -2px -2px 0px #FFF2B3,
         inset 2px 2px 0px #FFF2B3;
 }
 
@@ -860,7 +1006,7 @@ body {
     background-color: #FFF2B3;
     box-shadow: 
         inset -2px -2px 0px #FFE135,
-        inset 2px 2px 0px #CC9900;
+        inset 2px 2px 0px #FFF2B3;
 }
 
 .stat-card i {
@@ -951,7 +1097,7 @@ body {
     border: 3px solid #000000;
     box-shadow: 
         inset -2px -2px 0px #FFE135,
-        inset 2px 2px 0px #CC9900;
+        inset 2px 2px 0px #FFF2B3;
 }
 
 .experience-title {
@@ -1028,7 +1174,7 @@ body {
     padding: 1.5rem;
     border: 3px solid #000000;
     box-shadow: 
-        inset -2px -2px 0px #CC9900,
+        inset -2px -2px 0px #FFF2B3,
         inset 2px 2px 0px #FFF2B3;
 }
 
@@ -1047,7 +1193,7 @@ body {
     border: 3px solid #000000;
     transition: all 0.1s ease;
     box-shadow: 
-        inset -2px -2px 0px #CC9900,
+        inset -2px -2px 0px #FFF2B3,
         inset 2px 2px 0px #FFF2B3;
 }
 
@@ -1056,7 +1202,7 @@ body {
     transform: translateX(2px);
     box-shadow: 
         inset -2px -2px 0px #FFE135,
-        inset 2px 2px 0px #CC9900;
+        inset 2px 2px 0px #FFF2B3;
 }
 
 .contact-method i {
@@ -1092,7 +1238,7 @@ body {
 }
 
 .contact-method a:hover {
-    color: #CC9900;
+    color: #FFF2B3;
     text-decoration: underline;
 }
 
@@ -1101,7 +1247,7 @@ body {
     padding: 2rem;
     border: 4px solid #000000;
     box-shadow: 
-        inset -2px -2px 0px #CC9900,
+        inset -2px -2px 0px #FFF2B3,
         inset 2px 2px 0px #FFF2B3;
 }
 
@@ -1121,7 +1267,7 @@ body {
     transition: all 0.1s ease;
     box-shadow: 
         inset -2px -2px 0px #FFE135,
-        inset 2px 2px 0px #CC9900;
+        inset 2px 2px 0px #FFF2B3;
 }
 
 .form-group input::placeholder,
@@ -1207,7 +1353,7 @@ body {
         left: -100%;
         top: 60px;
         flex-direction: column;
-        background-color: #CC9900;
+        background-color: #FFF2B3;
         width: 100%;
         text-align: center;
         transition: 0.3s;
