@@ -1355,6 +1355,7 @@ body {
     background-color: #FFF2B3;
 }
 
+
 /* Game Boy Animations */
 @keyframes gbPulse {
     0%, 100% { transform: scale(1); }

@@ -144,8 +144,7 @@ To customize the website:
 ## 📞 Contact Information
 
 - **Email**: arjunpanse22@email.com
-- **Phone**: 8766674146
-- **LinkedIn**: linkedin.com/in/arjun-panse
+- **LinkedIn**: www.linkedin.com/in/arjun-panse-b4b43a239/
 - **GitHub**: github.com/AP2611
 
 ## 🌟 Easter Egg
