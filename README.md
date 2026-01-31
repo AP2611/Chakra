@@ -1,4 +1,4 @@
-# Recursive Agent System
+# Chakra - Recursive Agent System
 
 A multi-agent system with recursive learning capabilities that generates, critiques, improves, and learns from code and document-based solutions.
 
