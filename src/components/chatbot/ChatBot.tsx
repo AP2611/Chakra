@@ -53,7 +53,7 @@ export function ChatBot() {
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tokenCountRef = useRef<number>(0);
   
-  // Batched update function to prevent flicker
+  // Fast update function with minimal batching for instant display
   const updateResultWithTokens = useCallback((token: string) => {
     accumulatedTokensRef.current += token;
     tokenCountRef.current += 1;
@@ -95,16 +95,16 @@ export function ChatBot() {
       });
     };
     
-    // Batch updates: update every 5 tokens or every 100ms (whichever comes first)
-    if (tokenCountRef.current % 5 === 0) {
-      // Update immediately for every 5th token
+    // Fast updates: update every 2 tokens or every 10ms (whichever comes first) for instant display
+    if (tokenCountRef.current % 2 === 0) {
+      // Update immediately for every 2nd token
       updateState();
     } else {
-      // Schedule update after 100ms (debounced)
+      // Schedule update after only 10ms (very fast, minimal delay)
       updateTimeoutRef.current = setTimeout(() => {
         updateState();
         updateTimeoutRef.current = null;
-      }, 100);
+      }, 10);  // Reduced from 100ms to 10ms for near-instant updates
     }
   }, [input, useRAG]);
 
@@ -170,24 +170,26 @@ export function ChatBot() {
         const { done, value } = await reader.read();
         if (done) break;
 
+        // Decode immediately for instant processing
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() || "";
 
+        // Process all lines immediately (no delay)
         for (const line of lines) {
           if (line.startsWith("data: ")) {
             try {
               const data = JSON.parse(line.slice(6));
               
               if (data.type === "token") {
-                // Handle token-by-token streaming (prevent flicker with batching)
+                // Handle token-by-token streaming with fast updates
                 if (!firstResponseReceived) {
                   firstResponseReceived = true;
                   setStatus("streaming");
                   setProgress(30);
                 }
                 
-                // Update with batched tokens (prevents flicker)
+                // Update immediately with fast batching (10ms delay max)
                 updateResultWithTokens(data.token);
                 
               } else if (data.type === "first_response" || data.type === "first_response_complete") {

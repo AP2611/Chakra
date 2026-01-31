@@ -203,7 +203,7 @@ async def query_document(request: DocumentQueryRequest):
             is_code=False,
             strict_rag=True,  # Only use uploaded documents
             rag_chunks=rag_chunks,
-            max_iterations=2  # Simple default: 2 iterations
+            max_iterations=1  # Only 1 iteration for speed
         )
         
         # Record analytics in background (non-blocking)
@@ -288,9 +288,11 @@ async def process_task_stream(request: TaskRequest):
     
     async def generate():
         try:
-            queue = asyncio.Queue()
+            # Use unbounded queue for instant delivery (no blocking)
+            queue = asyncio.Queue(maxsize=0)  # Unbounded queue for instant delivery
             
             async def stream_callback(data):
+                # Put immediately without waiting (non-blocking for instant delivery)
                 await queue.put(data)
             
             # Start processing in background
@@ -326,7 +328,7 @@ async def process_task_stream(request: TaskRequest):
             # Start background processing
             asyncio.create_task(process_background())
             
-            # Stream responses as they come
+            # Stream responses as they come - immediate delivery
             while True:
                 data = await queue.get()
                 
@@ -336,13 +338,23 @@ async def process_task_stream(request: TaskRequest):
                     yield f"data: {json.dumps(data)}\n\n"
                     break
                 else:
+                    # Yield immediately for instant delivery to frontend
                     yield f"data: {json.dumps(data)}\n\n"
                     
         except Exception as e:
             error_msg = str(e) if str(e) else f"{type(e).__name__}: {repr(e)}"
             yield f"data: {json.dumps({'type': 'error', 'error': error_msg})}\n\n"
     
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    # Use StreamingResponse with no buffering for instant delivery
+    return StreamingResponse(
+        generate(), 
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering if present
+        }
+    )
 
 
 @app.get("/memory/stats")

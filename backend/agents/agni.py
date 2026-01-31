@@ -53,10 +53,15 @@ class Agni(BaseAgent):
                     "Write like ChatGPT or Gemini - natural, flowing English text with NO CODE."
                 )
         
+        # Truncate inputs if too long to speed up processing
+        max_input_length = 500  # Limit input length for speed
+        truncated_output = original_output[:max_input_length] + "..." if len(original_output) > max_input_length else original_output
+        truncated_critique = critique[:max_input_length] + "..." if len(critique) > max_input_length else critique
+        
         user_prompt_parts = [
             f"Original Task: {task}",
-            f"\n--- Original Output ---\n{original_output}",
-            f"\n--- Critique and Issues Found ---\n{critique}",
+            f"\n--- Original Output ---\n{truncated_output}",
+            f"\n--- Critique and Issues Found ---\n{truncated_critique}",
         ]
         
         if rag_chunks:
@@ -141,8 +146,8 @@ class Agni(BaseAgent):
         
         user_prompt = "\n".join(user_prompt_parts)
         
-        # Call Ollama with adaptive token limits based on task type
-        max_tokens = 1536 if use_fast_mode else 2048  # Improvements may need more tokens
+        # Call Ollama with very aggressive token limits for speed (improvements need more but still limited)
+        max_tokens = 192 if use_fast_mode else 384  # Even smaller for faster responses
         response = await self._call_ollama(user_prompt, system_prompt, max_tokens=max_tokens, use_fast_mode=use_fast_mode)
         
         # Remove code blocks if this is NOT a code task (for chatbot plain text output)

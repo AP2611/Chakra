@@ -48,9 +48,13 @@ class Sutra(BaseAgent):
                     "The output should be natural, conversational English like ChatGPT or Gemini - NO CODE."
                 )
         
+        # Truncate input if too long to speed up processing
+        max_input_length = 500  # Limit input length for speed
+        truncated_output = yantra_output[:max_input_length] + "..." if len(yantra_output) > max_input_length else yantra_output
+        
         user_prompt_parts = [
             f"Original Task: {original_task}",
-            f"\n--- Yantra's Output ---\n{yantra_output}",
+            f"\n--- Yantra's Output ---\n{truncated_output}",
         ]
         
         if rag_chunks:
@@ -121,8 +125,8 @@ class Sutra(BaseAgent):
         
         user_prompt = "\n".join(user_prompt_parts)
         
-        # Call Ollama with adaptive token limits based on task type
-        max_tokens = 768 if use_fast_mode else 1536  # Critique is typically shorter
+        # Call Ollama with very aggressive token limits for speed (critiques are shorter)
+        max_tokens = 128 if use_fast_mode else 256  # Even smaller for faster responses
         response = await self._call_ollama(user_prompt, system_prompt, max_tokens=max_tokens, use_fast_mode=use_fast_mode)
         
         return {

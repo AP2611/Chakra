@@ -18,7 +18,7 @@ class Orchestrator:
         self,
         ollama_url: Optional[str] = None,
         model: Optional[str] = None,
-        max_iterations: int = 2,  # Simple default: 2 iterations
+        max_iterations: int = 1,  # Default to 1 iteration for speed
         min_improvement: float = 0.01  # Simple threshold
     ):
         # Use environment variables if not provided
@@ -47,15 +47,22 @@ class Orchestrator:
     ) -> Dict[str, Any]:
         """Process a task through the recursive learning loop."""
         
-        # Retrieve RAG chunks if needed (reduced top_k for speed)
+        # Run RAG and memory retrieval in parallel for speed
         if use_rag and rag_chunks is None:
-            rag_chunks = self.rag.retrieve(task, top_k=3)  # Reduced from 5 to 3
-        
-        # Retrieve similar past examples from memory
-        past_examples = []
-        similar_tasks = self.smriti.retrieve_similar(task, limit=3)
-        if similar_tasks:
-            past_examples = [ex["solution"] for ex in similar_tasks]
+            # Parallel execution
+            rag_task = asyncio.create_task(
+                asyncio.to_thread(self.rag.retrieve, task, 3)
+            )
+            memory_task = asyncio.create_task(
+                asyncio.to_thread(self.smriti.retrieve_similar, task, 3)
+            )
+            rag_chunks = await rag_task
+            similar_tasks = await memory_task
+            past_examples = [ex["solution"] for ex in similar_tasks] if similar_tasks else []
+        else:
+            # Only memory retrieval
+            similar_tasks = await asyncio.to_thread(self.smriti.retrieve_similar, task, 3)
+            past_examples = [ex["solution"] for ex in similar_tasks] if similar_tasks else []
         
         iterations = []
         best_score = 0.0
@@ -76,15 +83,8 @@ class Orchestrator:
             ])
         )
         
-        # Use custom max_iterations if provided, otherwise use smart default
-        if max_iterations is not None:
-            actual_max_iterations = max_iterations
-        elif is_very_simple:
-            # Very simple questions: 1 iteration only (3 LLM calls = ~10-15 seconds)
-            actual_max_iterations = 1
-        else:
-            # Normal questions: use default (2 iterations)
-            actual_max_iterations = self.max_iterations
+        # Use custom max_iterations if provided, otherwise default to 1 for speed
+        actual_max_iterations = max_iterations if max_iterations is not None else 1
         
         # Track background task for first iteration
         background_task = None
@@ -99,8 +99,8 @@ class Orchestrator:
                 "improvement": None
             }
             
-            # Determine if we should use fast mode (for simple questions only)
-            use_fast_mode = is_very_simple and iteration == 0  # Only first iteration for simple questions
+            # Always use fast mode for speed optimization
+            use_fast_mode = True
             
             # Step 1: Yantra generates solution with token streaming for first iteration
             accumulated_tokens = []

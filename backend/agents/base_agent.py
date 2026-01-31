@@ -28,34 +28,37 @@ class BaseAgent(ABC):
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
         
-        # Adaptive Ollama optimizations: moderate settings for speed
-        # Only apply for simple tasks to maintain quality for complex ones
+        # Aggressive Ollama optimizations for maximum speed
+        # Use max_tokens parameter to set num_predict (respect the limit passed by agents)
         if use_fast_mode:
-            # Fast mode: moderate optimizations for simple tasks
+            # Fast mode: aggressive optimizations for speed
             options = {
-                "num_predict": min(max_tokens, 1024),  # Limit tokens but not too aggressive
-                "temperature": 0.7,  # Moderate (not too low to maintain quality)
-                "top_p": 0.85,  # Moderate
-                "top_k": 30,  # Moderate
+                "num_predict": min(max_tokens, 256),  # Use max_tokens but cap at 256 for speed
+                "temperature": 0.5,      # Lower = faster and more deterministic
+                "top_p": 0.7,            # Smaller = faster sampling
+                "top_k": 20,             # Smaller = faster
                 "repeat_penalty": 1.1,
-                "num_ctx": 2048,  # Keep context window reasonable
+                "num_ctx": 1024,         # Smaller context = faster processing
             }
         else:
-            # Normal mode: use defaults (no restrictions)
-            options = {}
+            # Normal mode - still optimized but less aggressive
+            options = {
+                "num_predict": min(max_tokens, 512),  # Use max_tokens but cap at 512
+                "temperature": 0.6,
+                "top_p": 0.8,
+                "top_k": 30,
+                "num_ctx": 2048,
+            }
         
         payload = {
             "model": self.model,
             "messages": messages,
-            "stream": False
+            "stream": False,
+            "options": options  # Always include options
         }
         
-        # Add options only if fast mode is enabled
-        if use_fast_mode:
-            payload["options"] = options
-        
         try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
+            async with httpx.AsyncClient(timeout=60.0) as client:
                 response = await client.post(self.api_url, json=payload)
                 
                 # Check status before parsing
@@ -113,32 +116,38 @@ class BaseAgent(ABC):
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
         
-        # Adaptive Ollama optimizations
+        # Aggressive Ollama optimizations for streaming
+        # Use max_tokens parameter to set num_predict (respect the limit passed by agents)
         if use_fast_mode:
             options = {
-                "num_predict": min(max_tokens, 1024),
-                "temperature": 0.7,
-                "top_p": 0.85,
-                "top_k": 30,
+                "num_predict": min(max_tokens, 256),  # Use max_tokens but cap at 256 for speed
+                "temperature": 0.5,      # Lower = faster and more deterministic
+                "top_p": 0.7,            # Smaller = faster sampling
+                "top_k": 20,             # Smaller = faster
                 "repeat_penalty": 1.1,
-                "num_ctx": 2048,
+                "num_ctx": 1024,         # Smaller context = faster processing
             }
         else:
-            options = {}
+            # Normal mode - still optimized but less aggressive
+            options = {
+                "num_predict": min(max_tokens, 512),  # Use max_tokens but cap at 512
+                "temperature": 0.6,
+                "top_p": 0.8,
+                "top_k": 30,
+                "num_ctx": 2048,
+            }
         
         payload = {
             "model": self.model,
             "messages": messages,
-            "stream": True  # Enable streaming
+            "stream": True,  # Enable streaming
+            "options": options  # Always include options
         }
-        
-        if use_fast_mode:
-            payload["options"] = options
         
         full_response = ""
         
         try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
+            async with httpx.AsyncClient(timeout=60.0) as client:
                 async with client.stream("POST", self.api_url, json=payload) as response:
                     if response.status_code != 200:
                         error_text = await response.aread()
@@ -171,10 +180,11 @@ class BaseAgent(ABC):
                             # Accumulate full response
                             full_response += token
                             
-                            # Call token callback if provided
+                            # Call token callback immediately if provided (for instant streaming)
+                            # Keep await to maintain order, but queue is unbounded so it's instant
                             if token_callback:
                                 try:
-                                    await token_callback(token)
+                                    await token_callback(token)  # Keep await for order, but queue is instant
                                 except Exception as e:
                                     print(f"Error in token_callback: {e}")
                                     

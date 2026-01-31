@@ -142,8 +142,8 @@ class Yantra(BaseAgent):
         
         user_prompt = "\n".join(user_prompt_parts)
         
-        # Call Ollama with adaptive token limits based on task type
-        max_tokens = 1024 if use_fast_mode else 2048  # Reduce tokens for fast mode
+        # Call Ollama with aggressive token limits for speed
+        max_tokens = 256 if use_fast_mode else 512  # Much smaller for faster responses
         
         # Use streaming if token_callback is provided (for first response streaming)
         if token_callback:
