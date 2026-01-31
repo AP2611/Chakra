@@ -18,8 +18,8 @@ class Orchestrator:
         self,
         ollama_url: Optional[str] = None,
         model: Optional[str] = None,
-        max_iterations: int = 5,  # Increased from 3 to allow more improvements
-        min_improvement: float = 0.01  # Lower threshold - continue even with small improvements
+        max_iterations: int = 2,  # Simple default: 2 iterations
+        min_improvement: float = 0.01  # Simple threshold
     ):
         # Use environment variables if not provided
         ollama_url = ollama_url or os.getenv('OLLAMA_URL', 'http://localhost:11434')
@@ -46,9 +46,9 @@ class Orchestrator:
     ) -> Dict[str, Any]:
         """Process a task through the recursive learning loop."""
         
-        # Retrieve RAG chunks if needed
+        # Retrieve RAG chunks if needed (reduced top_k for speed)
         if use_rag and rag_chunks is None:
-            rag_chunks = self.rag.retrieve(task, top_k=5)
+            rag_chunks = self.rag.retrieve(task, top_k=3)  # Reduced from 5 to 3
         
         # Retrieve similar past examples from memory
         past_examples = []
@@ -132,14 +132,12 @@ class Orchestrator:
                 best_score = score
                 best_solution = current_solution
             
-            # Check if we should continue
-            # Force at least 2 iterations to show improvement
-            if iteration > 0 and iteration >= 2:
-                improvement = score - iterations[-2]["score"]
-                if improvement < self.min_improvement:
-                    # Score plateaued, but only stop if we've done at least 2 iterations
-                    if len(iterations) >= 2:
-                        break
+            # Simple early stopping: if improvement is minimal, stop
+            if iteration > 0:
+                prev_score = iterations[-1]["score"]
+                improvement = score - prev_score
+                if improvement < self.min_improvement and iteration >= 1:
+                    break
         
         # Store best solution in memory (but not for strict RAG queries)
         if best_score > 0.6 and not strict_rag:  # Only store if score is decent and not strict RAG

@@ -37,18 +37,20 @@ class Yantra(BaseAgent):
         else:
             system_prompt = (
                 "You are Yantra, an expert problem solver. "
-                "CRITICAL: Generate ONLY a MINIMAL working version. "
-                "This is iteration 1 - create the SIMPLEST possible solution that works. "
-                "DO NOT include:\n"
-                "- Error handling (none at all)\n"
-                "- Type hints (none)\n"
-                "- Documentation/docstrings (none)\n"
-                "- Optimization (none)\n"
-                "- Edge case handling (only main happy path)\n"
-                "- Unit tests (none)\n"
-                "- Input validation (minimal)\n"
-                "- Comments (minimal)\n\n"
-                "Just make it WORK for the basic case. All improvements come in later iterations."
+                "STRICT RULE: Generate ONLY the absolute MINIMAL working version. "
+                "This is iteration 1 - create the SIMPLEST possible solution that works for the basic case only. "
+                "\nMANDATORY EXCLUSIONS (do NOT include any of these):\n"
+                "- Error handling (completely skip)\n"
+                "- Type hints (completely skip)\n"
+                "- Documentation/docstrings (completely skip)\n"
+                "- Optimization (completely skip)\n"
+                "- Edge case handling (only handle the main happy path)\n"
+                "- Unit tests (completely skip)\n"
+                "- Input validation (completely skip)\n"
+                "- Comments (only if absolutely critical)\n\n"
+                "Your goal: Write the bare minimum code that solves the basic case. "
+                "All improvements (error handling, type hints, docs, tests, optimization) will be added in later iterations. "
+                "Do NOT add anything beyond the absolute minimum required to make it work."
             )
         
         # Build user prompt
@@ -57,18 +59,19 @@ class Yantra(BaseAgent):
         # Add instruction for basic version if not strict RAG
         if not strict_rag:
             user_prompt_parts.append(
-                "\n⚠️⚠️⚠️ GENERATE MINIMAL VERSION - ITERATION 1 ⚠️⚠️⚠️\n"
-                "Create the ABSOLUTE MINIMUM working solution. SKIP ALL OF THESE:\n"
-                "- NO error handling (skip completely)\n"
-                "- NO type hints (skip completely)\n"
-                "- NO documentation/docstrings (skip completely)\n"
-                "- NO optimization (skip completely)\n"
-                "- NO edge cases (only handle the main happy path)\n"
-                "- NO unit tests (skip completely)\n"
-                "- NO input validation (skip completely)\n"
-                "- MINIMAL comments (only if absolutely necessary)\n\n"
-                "Just write the bare minimum code that solves the basic case. "
-                "Later iterations will add error handling, type hints, docs, tests, optimization, etc."
+                "\n⚠️ STRICT MINIMAL MODE - ITERATION 1 ⚠️\n"
+                "Create ONLY the absolute minimum working solution. STRICTLY EXCLUDE:\n"
+                "- NO error handling (completely skip)\n"
+                "- NO type hints (completely skip)\n"
+                "- NO documentation/docstrings (completely skip)\n"
+                "- NO optimization (completely skip)\n"
+                "- NO edge cases (only handle main happy path)\n"
+                "- NO unit tests (completely skip)\n"
+                "- NO input validation (completely skip)\n"
+                "- MINIMAL comments (only if critical)\n\n"
+                "Write ONLY the bare minimum code that solves the basic case. "
+                "All enhancements will be added in later iterations. "
+                "Focus on correctness for the basic case only - nothing more."
             )
         
         if rag_chunks:

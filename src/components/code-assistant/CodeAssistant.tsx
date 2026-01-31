@@ -66,10 +66,6 @@ export function CodeAssistant() {
 
       setProgress(20);
       
-      // Create abort controller for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes timeout
-      
       const response = await fetch(`${API_URL}/process`, {
         method: "POST",
         headers: {
@@ -81,10 +77,7 @@ export function CodeAssistant() {
           use_rag: useRAG,
           is_code: isCode,
         }),
-        signal: controller.signal,
       });
-      
-      clearTimeout(timeoutId);
 
       setProgress(50);
 

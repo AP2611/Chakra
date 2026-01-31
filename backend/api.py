@@ -17,7 +17,7 @@ app = FastAPI(title="Agent System API", version="1.0.0")
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:8080"],  # Vite default ports
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:8080", "http://localhost:8081"],  # Vite default ports
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -182,8 +182,8 @@ async def upload_document(file: UploadFile = File(...)):
 async def query_document(request: DocumentQueryRequest):
     """Query uploaded documents using RAG."""
     try:
-        # Retrieve more relevant chunks for better accuracy (like NotebookLM)
-        rag_chunks = rag_retriever.retrieve(request.question, top_k=15)
+        # Retrieve relevant chunks (balanced for speed and accuracy)
+        rag_chunks = rag_retriever.retrieve(request.question, top_k=8)  # Reduced from 15 to 8
         
         if not rag_chunks:
             raise HTTPException(
@@ -200,7 +200,7 @@ async def query_document(request: DocumentQueryRequest):
             is_code=False,
             strict_rag=True,  # Only use uploaded documents
             rag_chunks=rag_chunks,
-            max_iterations=5  # More iterations for better accuracy
+            max_iterations=2  # Simple default: 2 iterations
         )
         
         # Record analytics for document queries
@@ -229,8 +229,14 @@ async def query_document(request: DocumentQueryRequest):
             "sources": sources,
             "rag_chunks": rag_chunks
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        error_msg = str(e) if str(e) else f"{type(e).__name__}: {repr(e)}"
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error in query_document: {error_msg}\n{error_trace}")  # Log to console
+        raise HTTPException(status_code=500, detail=f"Error querying document: {error_msg}")
 
 
 @app.post("/process", response_model=ProcessResponse)
@@ -256,8 +262,14 @@ async def process_task(request: TaskRequest):
         )
         
         return result
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        error_msg = str(e) if str(e) else f"{type(e).__name__}: {repr(e)}"
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error in process_task: {error_msg}\n{error_trace}")  # Log to console
+        raise HTTPException(status_code=500, detail=f"Error processing task: {error_msg}")
 
 
 @app.get("/memory/stats")

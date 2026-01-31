@@ -29,11 +29,12 @@ class Agni(BaseAgent):
             )
         else:
             system_prompt = (
-                "You are Agni, an expert optimizer. "
-                "Your job is to make SIGNIFICANT improvements to the solution. "
-                "You MUST add substantial enhancements based on the critique. "
+                "You are Agni, a disciplined expert optimizer. "
+                "Your job: Systematically improve the solution by addressing ALL critique points. "
+                "MANDATORY: Address every issue identified in the critique. "
                 "Do not just fix bugs - ADD features, IMPROVE quality, ENHANCE robustness. "
-                "Make the solution noticeably better in every way."
+                "Make the solution noticeably better in every way. "
+                "Be thorough but efficient - focus on high-impact improvements."
             )
         
         user_prompt_parts = [
@@ -67,26 +68,26 @@ class Agni(BaseAgent):
                 )
         
         user_prompt_parts.append(
-            "\n--- Your Task - MAKE SUBSTANTIAL IMPROVEMENTS ---\n"
-            "You MUST add SIGNIFICANT features and improvements. For EVERY issue in the critique:\n"
-            "1. Fix ALL bugs and errors mentioned\n"
-            "2. ADD comprehensive error handling (try/except, None checks, validation)\n"
-            "3. ADD complete type hints/annotations to ALL functions\n"
-            "4. ADD detailed docstrings explaining purpose, parameters, returns, examples\n"
-            "5. ADD performance optimizations (use efficient algorithms, avoid redundant operations)\n"
-            "6. ADD input validation (check None, empty, invalid types, ranges)\n"
-            "7. ADD edge case handling (None, empty, negative, zero, large values)\n"
-            "8. ADD unit tests with multiple test cases\n"
-            "9. IMPROVE code structure (modularize, separate concerns, clean organization)\n"
-            "10. ADD security considerations (validate inputs, prevent injection)\n"
-            "11. REMOVE code duplication (refactor repeated code)\n"
-            "12. ADD proper imports (ensure all needed libraries are imported)\n"
-            "13. IMPROVE clarity (add comments, use clear variable names, remove magic numbers)\n"
-            "14. FOLLOW all best practices (PEP8, naming conventions, code style)\n"
-            "15. Make it production-ready (robust, tested, documented, maintainable)\n\n"
-            "CRITICAL: The improved version MUST be significantly better. "
-            "Add at least 3-5 new features/improvements that weren't in the original. "
-            "Make it production-quality code with error handling, type hints, docs, and tests."
+            "\n--- Your Task: Systematic Improvement ---\n"
+            "MANDATORY: Address EVERY issue identified in the critique. Systematically add:\n"
+            "1. Fix ALL bugs and errors mentioned in critique\n"
+            "2. ADD error handling (try/except, None checks, validation)\n"
+            "3. ADD type hints/annotations to ALL functions\n"
+            "4. ADD docstrings (purpose, parameters, returns, examples)\n"
+            "5. ADD performance optimizations (efficient algorithms, avoid redundancy)\n"
+            "6. ADD input validation (None, empty, invalid types, ranges)\n"
+            "7. ADD edge case handling (None, empty, negative, zero, boundary cases)\n"
+            "8. ADD unit tests (multiple test cases covering main and edge cases)\n"
+            "9. IMPROVE code structure (modularize, separate concerns)\n"
+            "10. ADD security measures (input validation, prevent injection)\n"
+            "11. REMOVE duplication (refactor repeated code)\n"
+            "12. ADD missing imports (ensure all required libraries)\n"
+            "13. IMPROVE clarity (comments, clear names, remove magic numbers)\n"
+            "14. FOLLOW best practices (PEP8, naming, code style)\n"
+            "15. Make production-ready (robust, tested, documented, maintainable)\n\n"
+            "REQUIREMENT: The improved version MUST address all critique points. "
+            "Add at least 3-5 substantial improvements that weren't in the original. "
+            "Prioritize high-impact improvements: error handling, type hints, tests, and documentation."
         )
         
         user_prompt = "\n".join(user_prompt_parts)

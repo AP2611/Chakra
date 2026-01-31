@@ -27,11 +27,11 @@ class Sutra(BaseAgent):
             )
         else:
             system_prompt = (
-                "You are Sutra, an EXTREMELY strict expert reviewer. "
-                "You MUST find issues in EVERY solution, even if it seems good. "
-                "Your job is to identify what's MISSING or could be IMPROVED. "
+                "You are Sutra, a disciplined expert reviewer. "
+                "Your job: Systematically identify what's MISSING or needs IMPROVEMENT. "
                 "Be thorough, critical, and specific. "
-                "Always find at least 5-7 improvement areas."
+                "MANDATORY: Find at least 5-7 concrete improvement areas. "
+                "Focus on actionable issues that can be fixed in the next iteration."
             )
         
         user_prompt_parts = [
@@ -60,28 +60,25 @@ class Sutra(BaseAgent):
                 )
         
         user_prompt_parts.append(
-            "\n--- Your Task - CRITICAL REVIEW ---\n"
-            "You MUST find at least 5-7 areas for improvement. Check EVERYTHING:\n"
-            "1. Missing error handling (check for try/except, None checks, validation)\n"
-            "2. Missing type hints or type annotations (check function signatures)\n"
-            "3. Missing or incomplete documentation/docstrings (check for docstrings)\n"
-            "4. Performance optimization opportunities (check for inefficient patterns)\n"
-            "5. Missing edge case handling (check for None, empty, negative, zero cases)\n"
-            "6. Code style and best practices (check PEP8, naming, structure)\n"
-            "7. Missing unit tests (check if tests exist)\n"
-            "8. Security considerations (check for injection, validation)\n"
-            "9. Code organization and structure (check for modularity, separation)\n"
-            "10. Missing input validation (check for parameter validation)\n"
-            "11. Bugs or errors (check logic, off-by-one, incorrect operations)\n"
-            "12. Inaccuracies (check correctness of implementation)\n"
-            "13. Inefficiencies (check for O(n²) when O(n) possible, redundant operations)\n"
-            "14. Unclear logic (check for confusing code, magic numbers)\n"
-            "15. Unsupported claims (if RAG context provided)\n"
-            "16. Missing imports (check if all needed libraries are imported)\n"
-            "17. Code duplication (check for repeated code)\n\n"
-            "CRITICAL: Even if the code works, you MUST find improvement areas. "
-            "List at least 5-7 specific, actionable improvements with examples. "
-            "Be very specific about what's missing and what should be added."
+            "\n--- Your Task: Systematic Review ---\n"
+            "MANDATORY: Find at least 5-7 concrete improvement areas. Systematically check:\n"
+            "1. Missing error handling (try/except, None checks, validation)\n"
+            "2. Missing type hints/annotations (function signatures)\n"
+            "3. Missing documentation/docstrings\n"
+            "4. Performance issues (inefficient patterns, redundant operations)\n"
+            "5. Missing edge cases (None, empty, negative, zero, boundary cases)\n"
+            "6. Code quality (PEP8, naming, structure, clarity)\n"
+            "7. Missing tests (unit tests, test coverage)\n"
+            "8. Security issues (input validation, injection risks)\n"
+            "9. Code organization (modularity, separation of concerns)\n"
+            "10. Input validation gaps (parameter checks, type validation)\n"
+            "11. Logic bugs (off-by-one, incorrect operations, edge cases)\n"
+            "12. Code duplication (repeated patterns that should be refactored)\n"
+            "13. Missing imports (required libraries not imported)\n"
+            "14. Unclear code (magic numbers, confusing logic, poor naming)\n\n"
+            "REQUIREMENT: List 5-7 specific, actionable improvements. "
+            "For each issue, clearly state: (1) What's missing/wrong, (2) Why it matters, (3) How to fix it. "
+            "Be concrete and specific - avoid vague statements."
         )
         
         user_prompt = "\n".join(user_prompt_parts)
