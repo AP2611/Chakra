@@ -1,6 +1,7 @@
 """FastAPI server for the agent system."""
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import uvicorn
@@ -11,6 +12,8 @@ import os
 import io
 from pypdf import PdfReader
 import time
+import json
+import asyncio
 
 app = FastAPI(title="Agent System API", version="1.0.0")
 
@@ -203,14 +206,17 @@ async def query_document(request: DocumentQueryRequest):
             max_iterations=2  # Simple default: 2 iterations
         )
         
-        # Record analytics for document queries
+        # Record analytics in background (non-blocking)
         duration_ms = (time.time() - start_time) * 1000
-        analytics.record_task(
-            task=request.question,
-            final_score=result["final_score"],
-            iterations=result["iterations"],
-            duration_ms=duration_ms,
-            task_type="document"
+        asyncio.create_task(
+            asyncio.to_thread(
+                analytics.record_task,
+                request.question,
+                result["final_score"],
+                result["iterations"],
+                duration_ms,
+                "document"
+            )
         )
         
         # Format sources with more context
@@ -251,14 +257,17 @@ async def process_task(request: TaskRequest):
             is_code=request.is_code
         )
         
-        # Record analytics
+        # Record analytics in background (non-blocking)
         duration_ms = (time.time() - start_time) * 1000
-        analytics.record_task(
-            task=request.task,
-            final_score=result["final_score"],
-            iterations=result["iterations"],
-            duration_ms=duration_ms,
-            task_type="code" if request.is_code else "document"
+        asyncio.create_task(
+            asyncio.to_thread(
+                analytics.record_task,
+                request.task,
+                result["final_score"],
+                result["iterations"],
+                duration_ms,
+                "code" if request.is_code else "document"
+            )
         )
         
         return result
@@ -270,6 +279,70 @@ async def process_task(request: TaskRequest):
         error_trace = traceback.format_exc()
         print(f"Error in process_task: {error_msg}\n{error_trace}")  # Log to console
         raise HTTPException(status_code=500, detail=f"Error processing task: {error_msg}")
+
+
+@app.post("/process-stream")
+async def process_task_stream(request: TaskRequest):
+    """Process a task with streaming responses (fast first response)."""
+    start_time = time.time()
+    
+    async def generate():
+        try:
+            queue = asyncio.Queue()
+            
+            async def stream_callback(data):
+                await queue.put(data)
+            
+            # Start processing in background
+            async def process_background():
+                try:
+                    result = await orchestrator.process(
+                        task=request.task,
+                        context=request.context,
+                        use_rag=request.use_rag,
+                        is_code=request.is_code,
+                        stream_callback=stream_callback
+                    )
+                    
+                    # Record analytics AFTER all background tasks complete (non-blocking)
+                    # This ensures we have complete iteration data including improvements
+                    duration_ms = (time.time() - start_time) * 1000
+                    asyncio.create_task(
+                        asyncio.to_thread(
+                            analytics.record_task,
+                            request.task,
+                            result["final_score"],
+                            result["iterations"],
+                            duration_ms,
+                            "code" if request.is_code else "document"
+                        )
+                    )
+                    
+                    await queue.put({"type": "end"})
+                except Exception as e:
+                    error_msg = str(e) if str(e) else f"{type(e).__name__}: {repr(e)}"
+                    await queue.put({"type": "error", "error": error_msg})
+            
+            # Start background processing
+            asyncio.create_task(process_background())
+            
+            # Stream responses as they come
+            while True:
+                data = await queue.get()
+                
+                if data["type"] == "end":
+                    break
+                elif data["type"] == "error":
+                    yield f"data: {json.dumps(data)}\n\n"
+                    break
+                else:
+                    yield f"data: {json.dumps(data)}\n\n"
+                    
+        except Exception as e:
+            error_msg = str(e) if str(e) else f"{type(e).__name__}: {repr(e)}"
+            yield f"data: {json.dumps({'type': 'error', 'error': error_msg})}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 @app.get("/memory/stats")

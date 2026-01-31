@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-type Status = "idle" | "improving" | "reviewing" | "finalizing" | "complete" | "error" | "generating" | "critiquing" | "evaluating";
+type Status = "idle" | "improving" | "reviewing" | "finalizing" | "complete" | "error" | "generating" | "streaming" | "critiquing" | "evaluating";
 
 interface StatusIndicatorProps {
   status: Status;
@@ -10,6 +10,7 @@ interface StatusIndicatorProps {
 const statusConfig: Record<Status, { label: string; dotClass: string }> = {
   idle: { label: "Ready", dotClass: "status-dot-idle" },
   generating: { label: "Generating…", dotClass: "status-dot-processing" },
+  streaming: { label: "Streaming…", dotClass: "status-dot-processing" },
   critiquing: { label: "Critiquing…", dotClass: "status-dot-processing" },
   improving: { label: "Improving…", dotClass: "status-dot-processing" },
   reviewing: { label: "Reviewing…", dotClass: "status-dot-processing" },

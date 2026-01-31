@@ -1,8 +1,9 @@
 """Base agent class for all agents in the system."""
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Callable, Awaitable
 import httpx
 import json
+import re
 
 
 class BaseAgent(ABC):
@@ -14,18 +15,44 @@ class BaseAgent(ABC):
         self.model = model
         self.api_url = f"{ollama_url}/api/chat"
     
-    async def _call_ollama(self, prompt: str, system: Optional[str] = None, max_tokens: int = 2048) -> str:
+    async def _call_ollama(
+        self, 
+        prompt: str, 
+        system: Optional[str] = None, 
+        max_tokens: int = 2048,
+        use_fast_mode: bool = False  # Enable speed optimizations for simple tasks
+    ) -> str:
         """Call Ollama API with the given prompt."""
         messages = []
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
         
+        # Adaptive Ollama optimizations: moderate settings for speed
+        # Only apply for simple tasks to maintain quality for complex ones
+        if use_fast_mode:
+            # Fast mode: moderate optimizations for simple tasks
+            options = {
+                "num_predict": min(max_tokens, 1024),  # Limit tokens but not too aggressive
+                "temperature": 0.7,  # Moderate (not too low to maintain quality)
+                "top_p": 0.85,  # Moderate
+                "top_k": 30,  # Moderate
+                "repeat_penalty": 1.1,
+                "num_ctx": 2048,  # Keep context window reasonable
+            }
+        else:
+            # Normal mode: use defaults (no restrictions)
+            options = {}
+        
         payload = {
             "model": self.model,
             "messages": messages,
             "stream": False
         }
+        
+        # Add options only if fast mode is enabled
+        if use_fast_mode:
+            payload["options"] = options
         
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
@@ -71,6 +98,118 @@ class BaseAgent(ABC):
         except Exception as e:
             error_msg = str(e) if str(e) else f"{type(e).__name__}: {repr(e)}"
             raise Exception(f"Error calling Ollama API: {error_msg}")
+    
+    async def _call_ollama_stream(
+        self,
+        prompt: str,
+        system: Optional[str] = None,
+        max_tokens: int = 2048,
+        use_fast_mode: bool = False,
+        token_callback: Optional[Callable[[str], Awaitable[None]]] = None  # Callback for each token (async function)
+    ) -> str:
+        """Call Ollama API with streaming enabled. Returns full response and calls callback for each token."""
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        
+        # Adaptive Ollama optimizations
+        if use_fast_mode:
+            options = {
+                "num_predict": min(max_tokens, 1024),
+                "temperature": 0.7,
+                "top_p": 0.85,
+                "top_k": 30,
+                "repeat_penalty": 1.1,
+                "num_ctx": 2048,
+            }
+        else:
+            options = {}
+        
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "stream": True  # Enable streaming
+        }
+        
+        if use_fast_mode:
+            payload["options"] = options
+        
+        full_response = ""
+        
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                async with client.stream("POST", self.api_url, json=payload) as response:
+                    if response.status_code != 200:
+                        error_text = await response.aread()
+                        try:
+                            error_json = json.loads(error_text)
+                            error_detail = error_json.get("error", {}).get("message", str(error_json))
+                        except:
+                            error_detail = error_text.decode() if isinstance(error_text, bytes) else str(error_text)
+                        raise Exception(f"Ollama API returned status {response.status_code}: {error_detail}")
+                    
+                    async for line in response.aiter_lines():
+                        if not line.strip():
+                            continue
+                        
+                        try:
+                            # Ollama streaming format: each line is a JSON object
+                            if line.startswith("data: "):
+                                line = line[6:]  # Remove "data: " prefix
+                            
+                            data = json.loads(line)
+                            
+                            # Extract token from response
+                            token = data.get("message", {}).get("content", "")
+                            if not token:
+                                # Check for done flag
+                                if data.get("done", False):
+                                    break
+                                continue
+                            
+                            # Accumulate full response
+                            full_response += token
+                            
+                            # Call token callback if provided
+                            if token_callback:
+                                try:
+                                    await token_callback(token)
+                                except Exception as e:
+                                    print(f"Error in token_callback: {e}")
+                                    
+                        except json.JSONDecodeError:
+                            # Skip invalid JSON lines
+                            continue
+                        except Exception as e:
+                            print(f"Error processing stream line: {e}")
+                            continue
+                    
+                    return full_response.strip()
+                    
+        except httpx.TimeoutException as e:
+            raise Exception(f"Ollama API timeout after 120s. Is Ollama running? Check: curl http://localhost:11434/api/tags")
+        except httpx.ConnectError as e:
+            raise Exception(f"Cannot connect to Ollama at {self.ollama_url}. Make sure Ollama is running: ollama serve")
+        except httpx.RequestError as e:
+            raise Exception(f"Ollama API connection error: {str(e)}. Make sure Ollama is running on {self.ollama_url}")
+        except Exception as e:
+            error_msg = str(e) if str(e) else f"{type(e).__name__}: {repr(e)}"
+            raise Exception(f"Error calling Ollama API: {error_msg}")
+    
+    def _remove_code_blocks(self, text: str) -> str:
+        """Remove all code blocks from text (for plain text responses)."""
+        # Remove markdown code blocks (```language ... ```)
+        text = re.sub(r'```[\s\S]*?```', '', text)
+        # Remove inline code (`code`)
+        text = re.sub(r'`[^`]+`', '', text)
+        # Remove any remaining code-like patterns
+        text = re.sub(r'def\s+\w+\s*\([^)]*\):', '', text)
+        text = re.sub(r'class\s+\w+[:\s]', '', text)
+        text = re.sub(r'import\s+\w+', '', text)
+        # Clean up extra whitespace
+        text = re.sub(r'\n\s*\n\s*\n', '\n\n', text)  # Multiple newlines to double
+        return text.strip()
     
     @abstractmethod
     async def process(self, **kwargs) -> Dict[str, Any]:

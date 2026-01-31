@@ -159,56 +159,90 @@ class Evaluator:
     def evaluate_rag_answer(
         self,
         answer: str,
-        rag_chunks: Optional[List[str]] = None
+        rag_chunks: Optional[List[str]] = None,
+        task: Optional[str] = None,
+        iteration_num: int = 0
     ) -> Dict[str, Any]:
-        """Evaluate RAG-based answer."""
+        """Evaluate theory/general question answers (non-code)."""
+        # Start with low base scores to encourage improvement
         scores = {
-            "grounding": 0.5,
-            "clarity": 0.5,
-            "completeness": 0.5,
-            "total": 0.5
+            "grounding": 0.3 if rag_chunks else 0.5,
+            "clarity": 0.3,
+            "completeness": 0.3,
+            "total": 0.3
         }
         
-        if not rag_chunks:
-            return scores
-        
-        # Check grounding - simple keyword matching
         answer_lower = answer.lower()
-        chunk_text = " ".join(rag_chunks).lower()
+        answer_length = len(answer.split())
         
-        answer_words = set(answer_lower.split())
-        chunk_words = set(chunk_text.split())
-        
-        # Calculate overlap
-        overlap = len(answer_words & chunk_words)
-        total_unique = len(answer_words | chunk_words)
-        
-        if total_unique > 0:
-            grounding_score = overlap / total_unique
-            scores["grounding"] = min(1.0, grounding_score * 2)  # Scale up
-        
-        # Check for citations or references
-        if re.search(r"\[.*?\]|\(.*?\)|source|document|according", answer_lower):
-            scores["grounding"] += 0.2
-        
-        # Clarity - check for structure
-        if len(answer.split("\n")) > 3:
+        # Clarity scoring - well-structured answers score higher
+        if answer_length > 50:
             scores["clarity"] += 0.2
-        
-        if re.search(r"\*\*.*?\*\*|#+\s+", answer):  # Markdown formatting
+        if answer_length > 100:
             scores["clarity"] += 0.1
         
-        # Normalize
+        # Check for structure and formatting
+        if re.search(r"\n\n|\n-|\n\*|\n\d+\.", answer):  # Paragraphs, lists, numbered lists
+            scores["clarity"] += 0.15
+        
+        if re.search(r"\*\*.*?\*\*|__.*?__|#+\s+", answer):  # Markdown formatting
+            scores["clarity"] += 0.1
+        
+        # Completeness scoring - longer, more detailed answers
+        if answer_length > 30:
+            scores["completeness"] += 0.2
+        if answer_length > 80:
+            scores["completeness"] += 0.15
+        if answer_length > 150:
+            scores["completeness"] += 0.1
+        
+        # Check for explanation depth (question words, examples, etc.)
+        explanation_indicators = len(re.findall(r"because|since|for example|such as|including|specifically|in other words|that is", answer_lower))
+        if explanation_indicators > 0:
+            scores["completeness"] += min(0.2, explanation_indicators * 0.05)
+        
+        # Check for examples
+        if re.search(r"example|instance|case|illustration", answer_lower):
+            scores["completeness"] += 0.1
+        
+        # Grounding scoring (if RAG chunks provided)
+        if rag_chunks:
+            chunk_text = " ".join(rag_chunks).lower()
+            answer_words = set(answer_lower.split())
+            chunk_words = set(chunk_text.split())
+            
+            # Calculate overlap
+            overlap = len(answer_words & chunk_words)
+            total_unique = len(answer_words | chunk_words)
+            
+            if total_unique > 0:
+                grounding_score = overlap / total_unique
+                scores["grounding"] = min(1.0, 0.3 + grounding_score * 0.7)  # Scale up from base
+            
+            # Check for citations or references
+            if re.search(r"\[.*?\]|\(.*?\)|source|document|according|reference", answer_lower):
+                scores["grounding"] += 0.15
+        else:
+            # For non-RAG answers, check for factual indicators
+            if re.search(r"according to|research shows|studies|evidence|data|statistics", answer_lower):
+                scores["grounding"] += 0.1
+        
+        # Normalize all scores
         scores["grounding"] = min(1.0, scores["grounding"])
         scores["clarity"] = min(1.0, scores["clarity"])
         scores["completeness"] = min(1.0, scores["completeness"])
         
-        # Total score
+        # Total score (weighted average)
         scores["total"] = (
-            scores["grounding"] * 0.5 +
-            scores["clarity"] * 0.3 +
-            scores["completeness"] * 0.2
+            scores["grounding"] * 0.3 +
+            scores["clarity"] * 0.35 +
+            scores["completeness"] * 0.35
         )
+        
+        # Add iteration bonus for improvement attempts
+        if iteration_num > 0:
+            scores["total"] += min(0.05, iteration_num * 0.01)
+            scores["total"] = min(1.0, scores["total"])
         
         return scores
     
@@ -224,5 +258,5 @@ class Evaluator:
         if is_code:
             return self.evaluate_code(solution, task, rag_chunks, iteration_num)
         else:
-            return self.evaluate_rag_answer(solution, rag_chunks)
+            return self.evaluate_rag_answer(solution, rag_chunks, task, iteration_num)
 

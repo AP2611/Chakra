@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Code2, FileText, BarChart3, Settings, ChevronLeft, Flame } from "lucide-react";
+import { Code2, FileText, BarChart3, Settings, ChevronLeft, Flame, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
   { title: "Code Assistant", path: "/", icon: Code2 },
+  { title: "ChatBot", path: "/chatbot", icon: MessageCircle },
   { title: "Document Assistant", path: "/documents", icon: FileText },
   { title: "Analytics", path: "/analytics", icon: BarChart3 },
   { title: "Settings", path: "/settings", icon: Settings },

@@ -14,7 +14,9 @@ class Sutra(BaseAgent):
         yantra_output: str,
         original_task: str,
         rag_chunks: Optional[List[str]] = None,
-        strict_rag: bool = False
+        strict_rag: bool = False,
+        is_code_task: bool = True,  # Default to code, but can be overridden
+        use_fast_mode: bool = False  # Enable speed optimizations
     ) -> Dict[str, Any]:
         """Analyze output and find issues."""
         
@@ -26,13 +28,25 @@ class Sutra(BaseAgent):
                 "Be extremely strict - even minor additions of external knowledge should be flagged."
             )
         else:
-            system_prompt = (
-                "You are Sutra, a disciplined expert reviewer. "
-                "Your job: Systematically identify what's MISSING or needs IMPROVEMENT. "
-                "Be thorough, critical, and specific. "
-                "MANDATORY: Find at least 5-7 concrete improvement areas. "
-                "Focus on actionable issues that can be fixed in the next iteration."
-            )
+            # Use the passed is_code_task parameter (don't re-detect)
+            if is_code_task:
+                system_prompt = (
+                    "You are Sutra, a disciplined expert reviewer. "
+                    "Your job: Systematically identify what's MISSING or needs IMPROVEMENT in the code. "
+                    "Be thorough, critical, and specific. "
+                    "MANDATORY: Find at least 5-7 concrete improvement areas. "
+                    "Focus on actionable issues that can be fixed in the next iteration."
+                )
+            else:
+                system_prompt = (
+                    "You are Sutra, a disciplined expert reviewer for explanations and answers. "
+                    "Your job: Systematically identify what's MISSING or needs IMPROVEMENT in the PLAIN TEXT response. "
+                    "CRITICAL: The response should be PLAIN TEXT ENGLISH - if you see ANY code, code blocks, or programming syntax, flag it as an error. "
+                    "Check for: clarity, completeness, accuracy, examples, structure, depth. "
+                    "MANDATORY: Find at least 3-5 concrete improvement areas. "
+                    "Focus on actionable improvements that can enhance the answer. "
+                    "The output should be natural, conversational English like ChatGPT or Gemini - NO CODE."
+                )
         
         user_prompt_parts = [
             f"Original Task: {original_task}",
@@ -59,31 +73,57 @@ class Sutra(BaseAgent):
                     "Flag any hallucinations or unsupported statements."
                 )
         
-        user_prompt_parts.append(
-            "\n--- Your Task: Systematic Review ---\n"
-            "MANDATORY: Find at least 5-7 concrete improvement areas. Systematically check:\n"
-            "1. Missing error handling (try/except, None checks, validation)\n"
-            "2. Missing type hints/annotations (function signatures)\n"
-            "3. Missing documentation/docstrings\n"
-            "4. Performance issues (inefficient patterns, redundant operations)\n"
-            "5. Missing edge cases (None, empty, negative, zero, boundary cases)\n"
-            "6. Code quality (PEP8, naming, structure, clarity)\n"
-            "7. Missing tests (unit tests, test coverage)\n"
-            "8. Security issues (input validation, injection risks)\n"
-            "9. Code organization (modularity, separation of concerns)\n"
-            "10. Input validation gaps (parameter checks, type validation)\n"
-            "11. Logic bugs (off-by-one, incorrect operations, edge cases)\n"
-            "12. Code duplication (repeated patterns that should be refactored)\n"
-            "13. Missing imports (required libraries not imported)\n"
-            "14. Unclear code (magic numbers, confusing logic, poor naming)\n\n"
-            "REQUIREMENT: List 5-7 specific, actionable improvements. "
-            "For each issue, clearly state: (1) What's missing/wrong, (2) Why it matters, (3) How to fix it. "
-            "Be concrete and specific - avoid vague statements."
-        )
+        # Use the passed is_code_task parameter (don't re-detect)
+        if is_code_task:
+            user_prompt_parts.append(
+                "\n--- Your Task: Systematic Review ---\n"
+                "MANDATORY: Find at least 5-7 concrete improvement areas. Systematically check:\n"
+                "1. Missing error handling (try/except, None checks, validation)\n"
+                "2. Missing type hints/annotations (function signatures)\n"
+                "3. Missing documentation/docstrings\n"
+                "4. Performance issues (inefficient patterns, redundant operations)\n"
+                "5. Missing edge cases (None, empty, negative, zero, boundary cases)\n"
+                "6. Code quality (PEP8, naming, structure, clarity)\n"
+                "7. Missing tests (unit tests, test coverage)\n"
+                "8. Security issues (input validation, injection risks)\n"
+                "9. Code organization (modularity, separation of concerns)\n"
+                "10. Input validation gaps (parameter checks, type validation)\n"
+                "11. Logic bugs (off-by-one, incorrect operations, edge cases)\n"
+                "12. Code duplication (repeated patterns that should be refactored)\n"
+                "13. Missing imports (required libraries not imported)\n"
+                "14. Unclear code (magic numbers, confusing logic, poor naming)\n\n"
+                "REQUIREMENT: List 5-7 specific, actionable improvements. "
+                "For each issue, clearly state: (1) What's missing/wrong, (2) Why it matters, (3) How to fix it. "
+                "Be concrete and specific - avoid vague statements."
+            )
+        else:
+            user_prompt_parts.append(
+                "\n--- Your Task: Systematic Review (PLAIN TEXT RESPONSE) ---\n"
+                "CRITICAL: If the output contains ANY code, code blocks, or programming syntax, flag it as a MAJOR ERROR. "
+                "The response MUST be plain English text only - like ChatGPT or Gemini.\n\n"
+                "MANDATORY: Find at least 3-5 concrete improvement areas. Systematically check:\n"
+                "1. Clarity (is the answer clear and easy to understand?)\n"
+                "2. Completeness (are all aspects of the question addressed?)\n"
+                "3. Depth (does it go into sufficient detail?)\n"
+                "4. Examples (are concrete examples provided in plain text?)\n"
+                "5. Structure (is it well-organized with paragraphs, lists, or sections?)\n"
+                "6. Accuracy (are the facts correct?)\n"
+                "7. Context (is background information provided where needed?)\n"
+                "8. Engagement (is it engaging and readable?)\n"
+                "9. Citations (if applicable, are sources mentioned?)\n"
+                "10. Practical application (if relevant, are real-world applications discussed?)\n"
+                "11. NO CODE (if there's any code, programming syntax, or code blocks, flag it as an error)\n\n"
+                "REQUIREMENT: List 3-5 specific, actionable improvements. "
+                "For each issue, clearly state: (1) What's missing/needs improvement, (2) Why it matters, (3) How to enhance it. "
+                "Be concrete and specific - avoid vague statements. "
+                "Remember: The output should be natural English text, NOT code."
+            )
         
         user_prompt = "\n".join(user_prompt_parts)
         
-        response = await self._call_ollama(user_prompt, system_prompt)
+        # Call Ollama with adaptive token limits based on task type
+        max_tokens = 768 if use_fast_mode else 1536  # Critique is typically shorter
+        response = await self._call_ollama(user_prompt, system_prompt, max_tokens=max_tokens, use_fast_mode=use_fast_mode)
         
         return {
             "agent": self.name,

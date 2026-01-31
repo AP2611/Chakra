@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Documents from "./pages/Documents";
 import Analytics from "./pages/Analytics";
 import Settings from "./pages/Settings";
+import ChatBotPage from "./pages/ChatBot";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
           <AppLayout>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/chatbot" element={<ChatBotPage />} />
               <Route path="/documents" element={<Documents />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/settings" element={<Settings />} />
