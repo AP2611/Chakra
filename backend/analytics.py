@@ -86,27 +86,42 @@ class AnalyticsTracker:
             return
         
         try:
-            # Calculate improvement metrics
+            # Calculate improvement metrics based on Yantra vs Agni scores
             if iterations and len(iterations) > 0:
-                # Get scores from iterations
-                initial_score = iterations[0].get("score", 0.0)
-                final_score_actual = iterations[-1].get("score", final_score) if iterations else final_score
-                improvement = final_score_actual - initial_score
+                # Get Yantra and Agni scores from first iteration
+                first_iteration = iterations[0]
+                yantra_score = first_iteration.get("yantra_score", 0.0)
+                agni_score = first_iteration.get("agni_score", first_iteration.get("score", final_score))
                 
-                # Better percentage calculation - handle edge cases
-                if initial_score > 0.01:
-                    improvement_percent = (improvement / initial_score) * 100
-                elif initial_score <= 0.01 and final_score_actual > 0.01:
-                    improvement_percent = ((final_score_actual - initial_score) / 0.1) * 100
+                # If yantra_score not explicitly stored, try to get from score or use first score as fallback
+                if yantra_score == 0.0 and "yantra_score" not in first_iteration:
+                    # Fallback: use first score as yantra_score if not explicitly stored
+                    yantra_score = first_iteration.get("score", 0.0)
+                
+                # If agni_score not explicitly stored, use final score
+                if agni_score == 0.0 and "agni_score" not in first_iteration:
+                    agni_score = first_iteration.get("score", final_score)
+                
+                improvement = agni_score - yantra_score
+                
+                # Calculate improvement percentage: (Agni - Yantra) / Yantra * 100
+                if yantra_score > 0.01:
+                    improvement_percent = (improvement / yantra_score) * 100
+                elif yantra_score <= 0.01 and agni_score > 0.01:
+                    improvement_percent = ((agni_score - yantra_score) / 0.1) * 100
                     improvement_percent = min(500.0, max(10.0, improvement_percent))
-                elif initial_score > 0 and final_score_actual > initial_score:
-                    improvement_percent = ((final_score_actual - initial_score) / max(0.01, initial_score)) * 100
+                elif yantra_score > 0 and agni_score > yantra_score:
+                    improvement_percent = ((agni_score - yantra_score) / max(0.01, yantra_score)) * 100
                 else:
                     if improvement > 0:
                         improvement_percent = (improvement / 0.1) * 100
                         improvement_percent = min(200.0, improvement_percent)
                     else:
                         improvement_percent = 0.0
+                
+                # Use yantra_score as initial_score and agni_score as final_score for analytics
+                initial_score = yantra_score
+                final_score_actual = agni_score
             else:
                 initial_score = final_score
                 final_score_actual = final_score

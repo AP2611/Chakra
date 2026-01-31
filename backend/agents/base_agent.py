@@ -33,7 +33,7 @@ class BaseAgent(ABC):
         if use_fast_mode:
             # Fast mode: aggressive optimizations for speed
             options = {
-                "num_predict": min(max_tokens, 256),  # Use max_tokens but cap at 256 for speed
+                "num_predict": min(max_tokens, 384),  # Increased cap to 384 for longer responses
                 "temperature": 0.5,      # Lower = faster and more deterministic
                 "top_p": 0.7,            # Smaller = faster sampling
                 "top_k": 20,             # Smaller = faster
@@ -43,7 +43,7 @@ class BaseAgent(ABC):
         else:
             # Normal mode - still optimized but less aggressive
             options = {
-                "num_predict": min(max_tokens, 512),  # Use max_tokens but cap at 512
+                "num_predict": min(max_tokens, 640),  # Increased cap to 640 for longer responses
                 "temperature": 0.6,
                 "top_p": 0.8,
                 "top_k": 30,
@@ -120,7 +120,7 @@ class BaseAgent(ABC):
         # Use max_tokens parameter to set num_predict (respect the limit passed by agents)
         if use_fast_mode:
             options = {
-                "num_predict": min(max_tokens, 256),  # Use max_tokens but cap at 256 for speed
+                "num_predict": min(max_tokens, 384),  # Increased cap to 384 for longer responses
                 "temperature": 0.5,      # Lower = faster and more deterministic
                 "top_p": 0.7,            # Smaller = faster sampling
                 "top_k": 20,             # Smaller = faster
@@ -130,7 +130,7 @@ class BaseAgent(ABC):
         else:
             # Normal mode - still optimized but less aggressive
             options = {
-                "num_predict": min(max_tokens, 512),  # Use max_tokens but cap at 512
+                "num_predict": min(max_tokens, 640),  # Increased cap to 640 for longer responses
                 "temperature": 0.6,
                 "top_p": 0.8,
                 "top_k": 30,

@@ -41,58 +41,105 @@ class SimpleRAGRetriever:
         if not self.chunks:
             return []
         
-        query_lower = query.lower()
+        query_lower = query.lower().strip()
         query_words = set(query_lower.split())
+        
+        # Remove stop words for better matching (common words that don't add meaning)
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'should', 'could', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'what', 'which', 'who', 'whom', 'where', 'when', 'why', 'how'}
+        query_words = {w for w in query_words if w not in stop_words and len(w) > 2}
+        
+        # If no meaningful words left, use all words
+        if not query_words:
+            query_words = set(query_lower.split())
+        
         query_phrases = [query_lower]  # Include full query as phrase
         
         # Extract 2-3 word phrases from query for better matching
         query_tokens = query_lower.split()
         for i in range(len(query_tokens) - 1):
-            query_phrases.append(" ".join(query_tokens[i:i+2]))
+            phrase = " ".join(query_tokens[i:i+2])
+            if len(phrase) > 3:  # Only meaningful phrases
+                query_phrases.append(phrase)
         
         scored_chunks = []
         for chunk in self.chunks:
-            chunk_text = chunk["text"].lower()
+            chunk_text_original = chunk["text"]  # Keep original for return
+            chunk_text = chunk_text_original.lower()
             chunk_words = set(chunk_text.split())
             
-            # 1. Jaccard similarity (word overlap)
+            # 1. Jaccard similarity (word overlap) - improved with better handling
             intersection = len(query_words & chunk_words)
             union = len(query_words | chunk_words)
             jaccard_score = intersection / union if union > 0 else 0
             
-            # 2. Phrase matching (exact phrase matches are more important)
+            # Boost jaccard score if there's any overlap at all
+            if intersection > 0:
+                jaccard_score = max(jaccard_score, 0.1)  # Minimum score for any overlap
+            
+            # 2. Phrase matching (exact phrase matches are more important) - improved
             phrase_score = 0.0
             for phrase in query_phrases:
                 if phrase in chunk_text:
-                    phrase_score += 0.3  # Boost for phrase matches
+                    # Longer phrases are more important
+                    phrase_score += (0.2 + len(phrase.split()) * 0.1)
             
-            # 3. Keyword frequency (how many query words appear)
+            # 3. Keyword frequency (how many query words appear) - improved
             keyword_count = sum(1 for word in query_words if word in chunk_text)
             keyword_score = keyword_count / len(query_words) if query_words else 0
             
-            # 4. Position bonus (earlier in document might be more relevant)
-            position_bonus = 0.0  # Could add if we track position
+            # Boost keyword score if at least one keyword matches
+            if keyword_count > 0:
+                keyword_score = max(keyword_score, 0.15)  # Minimum score for keyword match
             
-            # Combined score with weights
+            # 4. Word frequency (how often query words appear in chunk)
+            word_freq_score = sum(chunk_text.count(word) for word in query_words) / max(len(chunk_text.split()), 1)
+            
+            # 5. Length bonus (longer chunks with matches are better)
+            length_bonus = min(len(chunk_text) / 1000, 0.1) if intersection > 0 else 0
+            
+            # Combined score with improved weights
             total_score = (
-                jaccard_score * 0.4 +
-                min(phrase_score, 1.0) * 0.4 +
-                keyword_score * 0.2
+                jaccard_score * 0.3 +
+                min(phrase_score, 1.5) * 0.3 +  # Allow higher phrase scores
+                keyword_score * 0.2 +
+                min(word_freq_score, 0.5) * 0.15 +  # Word frequency
+                length_bonus * 0.05
             )
             
-            scored_chunks.append((total_score, chunk["text"]))
+            scored_chunks.append((total_score, chunk_text_original))  # Use original text
         
         # Sort by score and return top-k
         scored_chunks.sort(key=lambda x: x[0], reverse=True)
         
-        # Return chunks even with low scores if they're the best we have
-        # But filter out completely irrelevant ones (score < 0.05)
-        filtered_chunks = [(score, text) for score, text in scored_chunks if score >= 0.05]
+        # Very lenient filtering - return chunks even with very low scores
+        # Only filter out completely irrelevant ones (score < 0.001)
+        # But prioritize higher-scored chunks
+        filtered_chunks = [(score, text) for score, text in scored_chunks if score >= 0.001]
         
         if not filtered_chunks and scored_chunks:
-            # If nothing passes threshold, return top 3 anyway
-            filtered_chunks = scored_chunks[:3]
+            # If nothing passes threshold, return top chunks anyway (even with score 0)
+            # This ensures we always return something if chunks exist
+            filtered_chunks = scored_chunks[:top_k]
+        elif len(filtered_chunks) < top_k:
+            # If we have fewer than top_k, return what we have plus some lower-scored ones
+            filtered_chunks = scored_chunks[:top_k]
         
+        # Always return at least top_k chunks if available, even with low scores
+        # This ensures we have enough context for the LLM
+        if len(scored_chunks) >= top_k:
+            filtered_chunks = scored_chunks[:top_k]
+        elif filtered_chunks:
+            # Use what we have
+            pass
+        else:
+            # Last resort: return any chunks we have
+            filtered_chunks = scored_chunks[:min(top_k, len(scored_chunks))]
+        
+        # Debug: Log what we're returning
+        if filtered_chunks:
+            print(f"RAG: Returning {len(filtered_chunks[:top_k])} chunks with scores: {[f'{s:.3f}' for s, _ in filtered_chunks[:top_k]]}")
+        
+        # Return original text (not lowercased) for better context
         return [chunk_text for score, chunk_text in filtered_chunks[:top_k]]
     
     def add_document(self, content: str, source: str):
@@ -100,9 +147,9 @@ class SimpleRAGRetriever:
         # Split by paragraphs first
         paragraphs = [p.strip() for p in content.split("\n\n") if p.strip()]
         
-        # Create smaller, overlapping chunks for better retrieval
-        chunk_size = 500  # Characters per chunk
-        overlap = 100  # Overlap between chunks
+        # Create larger, overlapping chunks for better context preservation
+        chunk_size = 1000  # Characters per chunk (increased from 500 for better context)
+        overlap = 200  # Overlap between chunks (increased from 100)
         
         for para in paragraphs:
             if len(para) <= chunk_size:

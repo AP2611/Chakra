@@ -48,19 +48,31 @@ class Orchestrator:
         """Process a task through the recursive learning loop."""
         
         # Run RAG and memory retrieval in parallel for speed
-        if use_rag and rag_chunks is None:
-            # Parallel execution
-            rag_task = asyncio.create_task(
-                asyncio.to_thread(self.rag.retrieve, task, 3)
-            )
-            memory_task = asyncio.create_task(
-                asyncio.to_thread(self.smriti.retrieve_similar, task, 3)
-            )
-            rag_chunks = await rag_task
-            similar_tasks = await memory_task
-            past_examples = [ex["solution"] for ex in similar_tasks] if similar_tasks else []
+        # IMPORTANT: If rag_chunks is provided (e.g., from /query-document), use it directly
+        # Don't re-retrieve if chunks are already provided
+        if use_rag:
+            if rag_chunks is None:
+                # Parallel execution - only retrieve if not already provided
+                rag_task = asyncio.create_task(
+                    asyncio.to_thread(self.rag.retrieve, task, 10)  # Increased top_k
+                )
+                memory_task = asyncio.create_task(
+                    asyncio.to_thread(self.smriti.retrieve_similar, task, 3)
+                )
+                rag_chunks = await rag_task
+                similar_tasks = await memory_task
+                past_examples = [ex["solution"] for ex in similar_tasks] if similar_tasks else []
+            else:
+                # RAG chunks already provided (e.g., from /query-document endpoint)
+                # Don't retrieve again, just use the provided chunks
+                # Still retrieve memory for non-strict RAG
+                if not strict_rag:
+                    similar_tasks = await asyncio.to_thread(self.smriti.retrieve_similar, task, 3)
+                    past_examples = [ex["solution"] for ex in similar_tasks] if similar_tasks else []
+                else:
+                    past_examples = []  # No memory for strict RAG
         else:
-            # Only memory retrieval
+            # Only memory retrieval (no RAG)
             similar_tasks = await asyncio.to_thread(self.smriti.retrieve_similar, task, 3)
             past_examples = [ex["solution"] for ex in similar_tasks] if similar_tasks else []
         
@@ -136,6 +148,17 @@ class Orchestrator:
             )
             iteration_data["yantra_output"] = yantra_result["output"]
             current_solution = yantra_result["output"]
+            
+            # Evaluate Yantra's output to get initial score for improvement calculation
+            yantra_score_result = self.evaluator.evaluate(
+                solution=yantra_result["output"],
+                task=task,
+                is_code=is_code,
+                rag_chunks=rag_chunks,
+                iteration_num=iteration
+            )
+            yantra_score = yantra_score_result["total"]
+            iteration_data["yantra_score"] = yantra_score  # Store Yantra's score for improvement calculation
             
             # Stream first response complete (if not already streamed via tokens)
             if stream_callback is not None and iteration == 0 and not use_token_streaming:
@@ -226,7 +249,7 @@ class Orchestrator:
                         except Exception as e:
                             print(f"Error in stream_callback (improved): {e}")
                         
-                        # Step 4: Evaluate
+                        # Step 4: Evaluate Agni's improved solution
                         score_result = self.evaluator.evaluate(
                             solution=improved_solution,
                             task=task,
@@ -234,10 +257,30 @@ class Orchestrator:
                             rag_chunks=rag_chunks,
                             iteration_num=0
                         )
-                        score = score_result["total"]
-                        iteration_data["score"] = score
+                        score = score_result["total"]  # This is Agni's score
+                        iteration_data["score"] = score  # Agni's score (final)
+                        iteration_data["agni_score"] = score  # Also store as agni_score for clarity
                         iteration_data["score_details"] = score_result
-                        iteration_data["improvement"] = 0.0  # First iteration has no improvement
+                        
+                        # Calculate improvement: (Agni - Yantra) / Yantra * 100
+                        yantra_score = iteration_data.get("yantra_score", 0.0)
+                        if yantra_score > 0.01:
+                            improvement = score - yantra_score
+                            improvement_percent = (improvement / yantra_score) * 100
+                        elif yantra_score > 0:
+                            improvement = score - yantra_score
+                            improvement_percent = (improvement / max(0.01, yantra_score)) * 100
+                        else:
+                            # Handle edge case where yantra_score is 0 or very low
+                            improvement = score - yantra_score
+                            if improvement > 0:
+                                improvement_percent = (improvement / 0.1) * 100
+                                improvement_percent = min(200.0, improvement_percent)
+                            else:
+                                improvement_percent = 0.0
+                        
+                        iteration_data["improvement"] = improvement
+                        iteration_data["improvement_percent"] = improvement_percent
                         
                         # Update best solution
                         nonlocal best_score, best_solution
@@ -252,7 +295,8 @@ class Orchestrator:
                                 "iteration": 1,
                                 "solution": improved_solution,
                                 "score": score,
-                                "improvement": 0.0,
+                                "improvement": improvement,
+                                "improvement_percent": improvement_percent,
                                 "status": "complete"
                             })
                         except (BrokenPipeError, ConnectionError, OSError) as e:
@@ -321,7 +365,7 @@ class Orchestrator:
                 except Exception as e:
                     print(f"Error in stream_callback: {e}")  # Don't fail if callback errors
             
-            # Step 4: Evaluate (pass iteration number for progressive scoring)
+            # Step 4: Evaluate Agni's improved solution (pass iteration number for progressive scoring)
             score_result = self.evaluator.evaluate(
                 solution=current_solution,
                 task=task,
@@ -329,34 +373,47 @@ class Orchestrator:
                 rag_chunks=rag_chunks,
                 iteration_num=iteration
             )
-            score = score_result["total"]
-            iteration_data["score"] = score
+            score = score_result["total"]  # This is Agni's score
+            iteration_data["score"] = score  # Agni's score (final)
+            iteration_data["agni_score"] = score  # Also store as agni_score for clarity
             iteration_data["score_details"] = score_result
+            
+            # Calculate improvement: (Agni - Yantra) / Yantra * 100
+            yantra_score = iteration_data.get("yantra_score", 0.0)
+            if yantra_score > 0.01:
+                improvement = score - yantra_score
+                improvement_percent = (improvement / yantra_score) * 100
+            elif yantra_score > 0:
+                improvement = score - yantra_score
+                improvement_percent = (improvement / max(0.01, yantra_score)) * 100
+            else:
+                # Handle edge case where yantra_score is 0 or very low
+                improvement = score - yantra_score
+                if improvement > 0:
+                    improvement_percent = (improvement / 0.1) * 100
+                    improvement_percent = min(200.0, improvement_percent)
+                else:
+                    improvement_percent = 0.0
+            
+            iteration_data["improvement"] = improvement
+            iteration_data["improvement_percent"] = improvement_percent
             
             # Stream final iteration result
             if stream_callback is not None:
                 try:
-                    improvement = score - iterations[-1]["score"] if iteration > 0 else 0.0
                     await stream_callback({
                         "type": "iteration_complete",
                         "iteration": iteration + 1,
                         "solution": current_solution,
                         "score": score,
                         "improvement": improvement,
+                        "improvement_percent": improvement_percent,
                         "status": "complete"
                     })
                 except (BrokenPipeError, ConnectionError, OSError) as e:
                     print(f"Connection closed during iteration_complete: {e}")
                 except Exception as e:
                     print(f"Error in stream_callback: {e}")  # Don't fail if callback errors
-            
-            # Calculate improvement
-            if iteration > 0:
-                prev_score = iterations[-1]["score"]
-                improvement = score - prev_score
-                iteration_data["improvement"] = improvement
-            else:
-                iteration_data["improvement"] = 0.0
             
             iterations.append(iteration_data)
             

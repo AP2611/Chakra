@@ -53,10 +53,16 @@ class Agni(BaseAgent):
                     "Write like ChatGPT or Gemini - natural, flowing English text with NO CODE."
                 )
         
-        # Truncate inputs if too long to speed up processing
-        max_input_length = 500  # Limit input length for speed
-        truncated_output = original_output[:max_input_length] + "..." if len(original_output) > max_input_length else original_output
-        truncated_critique = critique[:max_input_length] + "..." if len(critique) > max_input_length else critique
+        # For RAG queries, don't truncate to preserve context; for non-RAG, truncate for speed
+        if strict_rag and rag_chunks:
+            # Don't truncate for RAG queries - need full context
+            truncated_output = original_output
+            truncated_critique = critique
+        else:
+            # Truncate inputs if too long to speed up processing (non-RAG only)
+            max_input_length = 500  # Limit input length for speed
+            truncated_output = original_output[:max_input_length] + "..." if len(original_output) > max_input_length else original_output
+            truncated_critique = critique[:max_input_length] + "..." if len(critique) > max_input_length else critique
         
         user_prompt_parts = [
             f"Original Task: {task}",
@@ -66,6 +72,7 @@ class Agni(BaseAgent):
         
         if rag_chunks:
             user_prompt_parts.append("\n--- Document Context ---")
+            # Include ALL chunks for maximum context (don't truncate chunks)
             for i, chunk in enumerate(rag_chunks, 1):
                 user_prompt_parts.append(f"\n[Document Chunk {i}]\n{chunk}")
             
@@ -146,8 +153,8 @@ class Agni(BaseAgent):
         
         user_prompt = "\n".join(user_prompt_parts)
         
-        # Call Ollama with very aggressive token limits for speed (improvements need more but still limited)
-        max_tokens = 192 if use_fast_mode else 384  # Even smaller for faster responses
+        # Call Ollama with balanced token limits (increased for longer improvements)
+        max_tokens = 256 if use_fast_mode else 512  # Increased from 192/384 for longer improvements
         response = await self._call_ollama(user_prompt, system_prompt, max_tokens=max_tokens, use_fast_mode=use_fast_mode)
         
         # Remove code blocks if this is NOT a code task (for chatbot plain text output)

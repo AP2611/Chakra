@@ -185,8 +185,14 @@ async def upload_document(file: UploadFile = File(...)):
 async def query_document(request: DocumentQueryRequest):
     """Query uploaded documents using RAG."""
     try:
-        # Retrieve relevant chunks (balanced for speed and accuracy)
-        rag_chunks = rag_retriever.retrieve(request.question, top_k=8)  # Reduced from 15 to 8
+        # Retrieve relevant chunks with more chunks for better accuracy
+        rag_chunks = rag_retriever.retrieve(request.question, top_k=10)  # Increased for better coverage
+        
+        # Debug: Log retrieval results
+        print(f"RAG Query: '{request.question}'")
+        print(f"Retrieved {len(rag_chunks)} chunks")
+        if rag_chunks:
+            print(f"First chunk preview: {rag_chunks[0][:100]}...")
         
         if not rag_chunks:
             raise HTTPException(

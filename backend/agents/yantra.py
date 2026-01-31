@@ -106,6 +106,7 @@ class Yantra(BaseAgent):
         
         if rag_chunks:
             user_prompt_parts.append("\n--- Relevant Document Context ---")
+            # Include ALL chunks for maximum context (don't truncate chunks)
             for i, chunk in enumerate(rag_chunks, 1):
                 user_prompt_parts.append(f"\n[Document Chunk {i}]\n{chunk}")
             
@@ -142,8 +143,8 @@ class Yantra(BaseAgent):
         
         user_prompt = "\n".join(user_prompt_parts)
         
-        # Call Ollama with aggressive token limits for speed
-        max_tokens = 256 if use_fast_mode else 512  # Much smaller for faster responses
+        # Call Ollama with balanced token limits (increased for longer responses)
+        max_tokens = 384 if use_fast_mode else 640  # Increased from 256/512 for longer responses
         
         # Use streaming if token_callback is provided (for first response streaming)
         if token_callback:
