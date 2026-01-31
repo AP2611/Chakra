@@ -54,10 +54,22 @@ export function CodeAssistant() {
     if (!input.trim()) return;
 
     setStatus("generating");
-    setProgress(0);
+    setProgress(10);
     setResult(null);
 
     try {
+      // Check API health first
+      const healthCheck = await fetch(`${API_URL}/health`);
+      if (!healthCheck.ok) {
+        throw new Error("Backend API is not available. Please make sure the backend server is running.");
+      }
+
+      setProgress(20);
+      
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes timeout
+      
       const response = await fetch(`${API_URL}/process`, {
         method: "POST",
         headers: {
@@ -69,19 +81,38 @@ export function CodeAssistant() {
           use_rag: useRAG,
           is_code: isCode,
         }),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
+
+      setProgress(50);
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`API error (${response.status}): ${errorText || response.statusText}`);
       }
 
+      setProgress(70);
       const data: ProcessResult = await response.json();
+      
+      setProgress(90);
       setResult(data);
       setStatus("complete");
       setProgress(100);
     } catch (error) {
       console.error("Error processing task:", error);
-      alert(`Error: ${error instanceof Error ? error.message : "Failed to process task"}`);
+      const errorMessage = error instanceof Error ? error.message : "Failed to process task";
+      
+      // More user-friendly error messages
+      if (errorMessage.includes("timeout") || errorMessage.includes("AbortError")) {
+        alert("Request timed out. The task might be too complex or Ollama is taking too long. Please try a simpler task or check if Ollama is running.");
+      } else if (errorMessage.includes("Failed to fetch") || errorMessage.includes("NetworkError")) {
+        alert("Cannot connect to the backend API. Please make sure:\n1. Backend server is running on http://localhost:8000\n2. Ollama is running\n3. No firewall is blocking the connection");
+      } else {
+        alert(`Error: ${errorMessage}`);
+      }
+      
       setStatus("idle");
       setProgress(0);
     }
@@ -110,8 +141,20 @@ export function CodeAssistant() {
     <div className="min-h-screen p-8 lg:p-12">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold text-foreground">Agent System - Code Assistant</h1>
+        <div className="space-y-4">
+          <div className="flex items-center gap-8">
+            <img 
+              src="/chakra-logo.png" 
+              alt="Chakra AI Logo" 
+              className="w-48 h-48 object-contain"
+            />
+            <div>
+              <h1 className="text-4xl font-semibold text-foreground">Chakra AI</h1>
+              <p className="text-muted-foreground text-lg">
+                Recursive Agent System - Multi-agent code generation with learning capabilities
+              </p>
+            </div>
+          </div>
           <p className="text-muted-foreground">
             Describe what you want to build, and watch the agents (Yantra, Sutra, Agni, Smriti) generate and improve your code through recursive learning.
           </p>

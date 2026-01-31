@@ -23,14 +23,19 @@ export function AppSidebar() {
       )}
     >
       {/* Logo */}
-      <div className="h-16 flex items-center px-4 border-b border-sidebar-border">
+      <div className="h-24 flex items-center px-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-gold flex items-center justify-center flex-shrink-0 glow-warm">
-            <Flame className="w-4 h-4 text-primary-foreground" />
-          </div>
+          <img 
+            src="/chakra-logo.png" 
+            alt="Chakra AI Logo" 
+            className={cn(
+              "flex-shrink-0 object-contain transition-all",
+              collapsed ? "w-14 h-14" : "w-20 h-20"
+            )}
+          />
           {!collapsed && (
             <span className="font-semibold text-foreground whitespace-nowrap animate-fade-in">
-              Chakra
+              Chakra AI
             </span>
           )}
         </div>

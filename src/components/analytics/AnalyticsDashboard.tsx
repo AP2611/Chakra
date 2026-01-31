@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { TrendingUp, Clock, Target, Zap, ArrowUp, ArrowDown } from "lucide-react";
 import {
   LineChart,
@@ -9,42 +10,13 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  BarChart,
+  Bar,
+  Legend,
 } from "recharts";
 import { cn } from "@/lib/utils";
 
-const qualityData = [
-  { iteration: "1", before: 45, after: 62 },
-  { iteration: "2", before: 62, after: 74 },
-  { iteration: "3", before: 74, after: 82 },
-  { iteration: "4", before: 82, after: 89 },
-  { iteration: "5", before: 89, after: 94 },
-];
-
-const performanceData = [
-  { time: "00:00", latency: 120, accuracy: 85 },
-  { time: "04:00", latency: 115, accuracy: 87 },
-  { time: "08:00", latency: 180, accuracy: 84 },
-  { time: "12:00", latency: 145, accuracy: 89 },
-  { time: "16:00", latency: 130, accuracy: 91 },
-  { time: "20:00", latency: 125, accuracy: 92 },
-];
-
-const learningHistory = [
-  { id: 1, task: "React Hook Optimization", improvement: "+18%", duration: "2.3s", iterations: 4, date: "Today, 2:30 PM" },
-  { id: 2, task: "API Error Handling", improvement: "+24%", duration: "1.8s", iterations: 3, date: "Today, 11:15 AM" },
-  { id: 3, task: "TypeScript Type Definitions", improvement: "+31%", duration: "3.1s", iterations: 5, date: "Yesterday, 4:45 PM" },
-  { id: 4, task: "Database Query Optimization", improvement: "+22%", duration: "2.7s", iterations: 4, date: "Yesterday, 10:00 AM" },
-  { id: 5, task: "Component State Management", improvement: "+15%", duration: "1.5s", iterations: 2, date: "2 days ago" },
-];
-
-const agentWorkflow = [
-  { step: "Input Analysis", duration: 150, status: "complete" },
-  { step: "Code Generation", duration: 450, status: "complete" },
-  { step: "Self-Review", duration: 280, status: "complete" },
-  { step: "Improvement Pass 1", duration: 320, status: "complete" },
-  { step: "Improvement Pass 2", duration: 290, status: "complete" },
-  { step: "Final Validation", duration: 180, status: "complete" },
-];
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 interface MetricCardProps {
   title: string;
@@ -82,53 +54,165 @@ function MetricCard({ title, value, change, changeType, icon: Icon }: MetricCard
         >
           {change}
         </span>
-        <span className="text-sm text-muted-foreground">vs last week</span>
+        <span className="text-sm text-muted-foreground">vs last session</span>
       </div>
     </div>
   );
 }
 
+interface Metrics {
+  avg_improvement: number;
+  avg_latency: number;
+  avg_accuracy: number;
+  avg_iterations: number;
+  total_tasks: number;
+}
+
+interface QualityData {
+  iteration: string;
+  before: number;
+  after: number;
+  improvement: number;
+}
+
+interface PerformanceData {
+  time: string;
+  latency: number;
+  accuracy: number;
+}
+
+interface RecentTask {
+  id: number;
+  task: string;
+  improvement: string;
+  duration: string;
+  iterations: number;
+  date: string;
+}
+
 export function AnalyticsDashboard() {
-  const totalWorkflowDuration = agentWorkflow.reduce((acc, step) => acc + step.duration, 0);
+  const [metrics, setMetrics] = useState<Metrics>({
+    avg_improvement: 0,
+    avg_latency: 0,
+    avg_accuracy: 0,
+    avg_iterations: 0,
+    total_tasks: 0,
+  });
+  const [qualityData, setQualityData] = useState<QualityData[]>([]);
+  const [performanceData, setPerformanceData] = useState<PerformanceData[]>([]);
+  const [recentTasks, setRecentTasks] = useState<RecentTask[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+
+  const fetchAnalytics = async () => {
+    try {
+      // Fetch all analytics data in parallel
+      const [metricsRes, qualityRes, performanceRes, tasksRes] = await Promise.all([
+        fetch(`${API_URL}/analytics/metrics`),
+        fetch(`${API_URL}/analytics/quality-improvement`),
+        fetch(`${API_URL}/analytics/performance-history`),
+        fetch(`${API_URL}/analytics/recent-tasks`),
+      ]);
+
+      if (metricsRes.ok) {
+        const metricsData = await metricsRes.json();
+        setMetrics(metricsData);
+      }
+
+      if (qualityRes.ok) {
+        const qualityDataRes = await qualityRes.json();
+        setQualityData(qualityDataRes.data || []);
+      }
+
+      if (performanceRes.ok) {
+        const performanceDataRes = await performanceRes.json();
+        setPerformanceData(performanceDataRes.data || []);
+      }
+
+      if (tasksRes.ok) {
+        const tasksData = await tasksRes.json();
+        setRecentTasks(tasksData.data || []);
+      }
+
+      setLastUpdate(new Date());
+      setLoading(false);
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Initial fetch
+    fetchAnalytics();
+
+    // Poll for updates every 3 seconds for real-time updates
+    const interval = setInterval(fetchAnalytics, 3000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Calculate change indicators (simplified - compare with previous values)
+  const getChangeType = (value: number, threshold: number = 0): "positive" | "negative" | "neutral" => {
+    if (value > threshold) return "positive";
+    if (value < threshold) return "negative";
+    return "neutral";
+  };
+
+  // Format quality data for chart with before/after
+  const formattedQualityData = qualityData.length > 0
+    ? qualityData.map((item) => ({
+        iteration: item.iteration,
+        before: item.before,
+        after: item.after,
+        improvement: item.improvement,
+      }))
+    : [];
 
   return (
     <div className="min-h-screen p-8 lg:p-12">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold text-foreground">Analytics</h1>
-          <p className="text-muted-foreground">
-            Advanced metrics and insights for developers
-          </p>
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-semibold text-foreground">Analytics</h1>
+            <p className="text-muted-foreground">
+              Real-time metrics and insights for the agent system
+            </p>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            Last updated: {lastUpdate.toLocaleTimeString()}
+            {loading && <span className="ml-2 animate-pulse">🔄</span>}
+          </div>
         </div>
 
         {/* Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard
             title="Avg. Improvement"
-            value="22%"
-            change="+4.2%"
-            changeType="positive"
+            value={`${metrics.avg_improvement.toFixed(1)}%`}
+            change={`${metrics.avg_improvement > 0 ? '+' : ''}${metrics.avg_improvement.toFixed(1)}%`}
+            changeType={metrics.avg_improvement > 0 ? "positive" : "neutral"}
             icon={TrendingUp}
           />
           <MetricCard
             title="Avg. Latency"
-            value="1.8s"
-            change="-0.3s"
-            changeType="positive"
+            value={`${metrics.avg_latency.toFixed(1)}s`}
+            change={metrics.avg_latency > 0 ? `${metrics.avg_latency.toFixed(1)}s` : "N/A"}
+            changeType={metrics.avg_latency > 0 && metrics.avg_latency < 5 ? "positive" : "neutral"}
             icon={Clock}
           />
           <MetricCard
             title="Accuracy"
-            value="94%"
-            change="+2.1%"
-            changeType="positive"
+            value={`${metrics.avg_accuracy.toFixed(1)}%`}
+            change={`${metrics.avg_accuracy > 0 ? '+' : ''}${metrics.avg_accuracy.toFixed(1)}%`}
+            changeType={getChangeType(metrics.avg_accuracy - 80)}
             icon={Target}
           />
           <MetricCard
-            title="Iterations"
-            value="3.5"
-            change="Same"
+            title="Total Tasks"
+            value={metrics.total_tasks.toString()}
+            change={metrics.total_tasks > 0 ? `${metrics.total_tasks} tasks` : "No tasks yet"}
             changeType="neutral"
             icon={Zap}
           />
@@ -139,49 +223,60 @@ export function AnalyticsDashboard() {
           {/* Quality Improvement Chart */}
           <div className="card-elevated p-6">
             <h3 className="section-title mb-1">Quality Improvement Over Iterations</h3>
-            <p className="section-subtitle mb-6">Before vs after comparison</p>
+            <p className="section-subtitle mb-6">Before vs After comparison</p>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={qualityData}>
-                  <defs>
-                    <linearGradient id="beforeGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(220, 14%, 70%)" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(220, 14%, 70%)" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="afterGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(220, 70%, 50%)" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(220, 70%, 50%)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 13%, 91%)" />
-                  <XAxis dataKey="iteration" stroke="hsl(220, 10%, 46%)" fontSize={12} />
-                  <YAxis stroke="hsl(220, 10%, 46%)" fontSize={12} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(0, 0%, 100%)",
-                      border: "1px solid hsl(220, 13%, 91%)",
-                      borderRadius: "8px",
-                      boxShadow: "var(--shadow-md)",
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="before"
-                    stroke="hsl(220, 14%, 70%)"
-                    fill="url(#beforeGradient)"
-                    strokeWidth={2}
-                    name="Before"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="after"
-                    stroke="hsl(220, 70%, 50%)"
-                    fill="url(#afterGradient)"
-                    strokeWidth={2}
-                    name="After"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {formattedQualityData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={formattedQualityData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 13%, 91%)" />
+                    <XAxis 
+                      dataKey="iteration" 
+                      stroke="hsl(220, 10%, 46%)" 
+                      fontSize={11}
+                      angle={-45}
+                      textAnchor="end"
+                      height={70}
+                    />
+                    <YAxis 
+                      stroke="hsl(220, 10%, 46%)" 
+                      fontSize={12} 
+                      domain={[0, 100]}
+                      label={{ value: 'Score (%)', angle: -90, position: 'insideLeft' }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(0, 0%, 100%)",
+                        border: "1px solid hsl(220, 13%, 91%)",
+                        borderRadius: "8px",
+                        boxShadow: "var(--shadow-md)",
+                      }}
+                      formatter={(value: number, name: string) => {
+                        if (name === "improvement") {
+                          return [`+${value.toFixed(1)}%`, "Improvement"];
+                        }
+                        return [`${value.toFixed(1)}%`, name === "before" ? "Before" : "After"];
+                      }}
+                    />
+                    <Legend />
+                    <Bar 
+                      dataKey="before" 
+                      fill="hsl(220, 14%, 70%)" 
+                      name="Before"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar 
+                      dataKey="after" 
+                      fill="hsl(142, 71%, 45%)" 
+                      name="After"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground">
+                  No data yet. Process some tasks to see quality improvements.
+                </div>
+              )}
             </div>
           </div>
 
@@ -190,65 +285,60 @@ export function AnalyticsDashboard() {
             <h3 className="section-title mb-1">Performance Metrics</h3>
             <p className="section-subtitle mb-6">Latency and accuracy over time</p>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={performanceData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 13%, 91%)" />
-                  <XAxis dataKey="time" stroke="hsl(220, 10%, 46%)" fontSize={12} />
-                  <YAxis stroke="hsl(220, 10%, 46%)" fontSize={12} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(0, 0%, 100%)",
-                      border: "1px solid hsl(220, 13%, 91%)",
-                      borderRadius: "8px",
-                      boxShadow: "var(--shadow-md)",
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="latency"
-                    stroke="hsl(38, 92%, 50%)"
-                    strokeWidth={2}
-                    dot={false}
-                    name="Latency (ms)"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="accuracy"
-                    stroke="hsl(152, 60%, 45%)"
-                    strokeWidth={2}
-                    dot={false}
-                    name="Accuracy (%)"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-
-        {/* Agent Workflow Timeline */}
-        <div className="card-elevated p-6">
-          <h3 className="section-title mb-1">Agent Workflow Timeline</h3>
-          <p className="section-subtitle mb-6">Processing steps breakdown</p>
-          <div className="space-y-3">
-            {agentWorkflow.map((step, index) => (
-              <div key={index} className="flex items-center gap-4">
-                <span className="text-sm text-muted-foreground w-36 truncate">
-                  {step.step}
-                </span>
-                <div className="flex-1 h-6 bg-secondary rounded-lg overflow-hidden">
-                  <div
-                    className="h-full rounded-lg transition-all duration-500"
-                    style={{
-                      width: `${(step.duration / totalWorkflowDuration) * 100}%`,
-                      background: `linear-gradient(90deg, hsl(220, 70%, 50%) 0%, hsl(230, 70%, 55%) 100%)`,
-                    }}
-                  />
+              {performanceData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={performanceData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 13%, 91%)" />
+                    <XAxis dataKey="time" stroke="hsl(220, 10%, 46%)" fontSize={12} />
+                    <YAxis 
+                      yAxisId="left"
+                      stroke="hsl(38, 92%, 50%)" 
+                      fontSize={12}
+                      label={{ value: 'Latency (ms)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle' } }}
+                    />
+                    <YAxis 
+                      yAxisId="right"
+                      orientation="right"
+                      stroke="hsl(152, 60%, 45%)" 
+                      fontSize={12}
+                      domain={[0, 100]}
+                      label={{ value: 'Accuracy (%)', angle: 90, position: 'insideRight', style: { textAnchor: 'middle' } }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(0, 0%, 100%)",
+                        border: "1px solid hsl(220, 13%, 91%)",
+                        borderRadius: "8px",
+                        boxShadow: "var(--shadow-md)",
+                      }}
+                    />
+                    <Legend />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="latency"
+                      stroke="hsl(38, 92%, 50%)"
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                      name="Latency (ms)"
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="accuracy"
+                      stroke="hsl(152, 60%, 45%)"
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                      name="Accuracy (%)"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground">
+                  No performance data yet. Process some tasks to see metrics.
                 </div>
-                <span className="text-sm text-muted-foreground w-16 text-right">
-                  {step.duration}ms
-                </span>
-              </div>
-            ))}
+              )}
+            </div>
           </div>
         </div>
 
@@ -259,53 +349,59 @@ export function AnalyticsDashboard() {
             <p className="section-subtitle mt-1">Recent task improvements and performance</p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border bg-secondary/30">
-                  <th className="text-left text-sm font-medium text-muted-foreground px-6 py-3">
-                    Task
-                  </th>
-                  <th className="text-left text-sm font-medium text-muted-foreground px-6 py-3">
-                    Improvement
-                  </th>
-                  <th className="text-left text-sm font-medium text-muted-foreground px-6 py-3">
-                    Duration
-                  </th>
-                  <th className="text-left text-sm font-medium text-muted-foreground px-6 py-3">
-                    Iterations
-                  </th>
-                  <th className="text-left text-sm font-medium text-muted-foreground px-6 py-3">
-                    Date
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {learningHistory.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-b border-border last:border-0 hover:bg-secondary/20 transition-colors"
-                  >
-                    <td className="px-6 py-4 text-sm font-medium text-foreground">
-                      {item.task}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm font-medium text-success">
-                        {item.improvement}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground">
-                      {item.duration}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground">
-                      {item.iterations}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-muted-foreground">
-                      {item.date}
-                    </td>
+            {recentTasks.length > 0 ? (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border bg-secondary/30">
+                    <th className="text-left text-sm font-medium text-muted-foreground px-6 py-3">
+                      Task
+                    </th>
+                    <th className="text-left text-sm font-medium text-muted-foreground px-6 py-3">
+                      Improvement
+                    </th>
+                    <th className="text-left text-sm font-medium text-muted-foreground px-6 py-3">
+                      Duration
+                    </th>
+                    <th className="text-left text-sm font-medium text-muted-foreground px-6 py-3">
+                      Iterations
+                    </th>
+                    <th className="text-left text-sm font-medium text-muted-foreground px-6 py-3">
+                      Date
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {recentTasks.map((item) => (
+                    <tr
+                      key={item.id}
+                      className="border-b border-border last:border-0 hover:bg-secondary/20 transition-colors"
+                    >
+                      <td className="px-6 py-4 text-sm font-medium text-foreground">
+                        {item.task}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm font-medium text-success">
+                          {item.improvement}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-muted-foreground">
+                        {item.duration}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-muted-foreground">
+                        {item.iterations}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-muted-foreground">
+                        {item.date}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="p-12 text-center text-muted-foreground">
+                No tasks processed yet. Start using the Code Assistant or Document Assistant to see analytics.
+              </div>
+            )}
           </div>
         </div>
       </div>

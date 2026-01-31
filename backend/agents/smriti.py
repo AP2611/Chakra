@@ -3,39 +3,61 @@ import json
 import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-import sqlite3
+import pymysql
 import hashlib
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 
 class Smriti:
-    """Memory agent for persistent learning."""
+    """Memory agent for persistent learning using MySQL."""
     
-    def __init__(self, db_path: str = "backend/data/memory.db"):
-        self.db_path = db_path
+    def __init__(self):
+        self.db_config = {
+            'host': os.getenv('DB_HOST', 'localhost'),
+            'port': int(os.getenv('DB_PORT', 3306)),
+            'user': os.getenv('DB_USER', 'chakra_user'),
+            'password': os.getenv('DB_PASSWORD', 'chakra_password'),
+            'database': os.getenv('DB_NAME', 'chakra_db'),
+            'charset': 'utf8mb4',
+            'cursorclass': pymysql.cursors.DictCursor
+        }
         self._init_db()
+    
+    def _get_connection(self):
+        """Get a MySQL database connection."""
+        return pymysql.connect(**self.db_config)
     
     def _init_db(self):
         """Initialize the memory database."""
-        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
-        
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS memories (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                task_hash TEXT UNIQUE NOT NULL,
-                task TEXT NOT NULL,
-                task_embedding TEXT,
-                solution TEXT NOT NULL,
-                quality_score REAL NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                metadata TEXT
-            )
-        """)
-        
-        conn.commit()
-        conn.close()
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS memories (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    task_hash VARCHAR(64) UNIQUE NOT NULL,
+                    task TEXT NOT NULL,
+                    task_embedding TEXT,
+                    solution TEXT NOT NULL,
+                    quality_score FLOAT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    metadata TEXT,
+                    INDEX idx_task_hash (task_hash),
+                    INDEX idx_quality_score (quality_score)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """)
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"Warning: Could not initialize database: {e}")
+            print("Make sure MySQL is running and the database is created.")
+            raise
     
     def _hash_task(self, task: str) -> str:
         """Create a hash of the task for deduplication."""
@@ -52,43 +74,54 @@ class Smriti:
         """Store a successful solution."""
         task_hash = self._hash_task(task)
         
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        # Check if task already exists
-        cursor.execute("SELECT quality_score FROM memories WHERE task_hash = ?", (task_hash,))
-        existing = cursor.fetchone()
-        
-        if existing:
-            # Only update if new score is better
-            if quality_score > existing[0]:
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            # Check if task already exists
+            cursor.execute(
+                "SELECT quality_score FROM memories WHERE task_hash = %s",
+                (task_hash,)
+            )
+            existing = cursor.fetchone()
+            
+            task_embedding_json = json.dumps(task_embedding) if task_embedding else None
+            metadata_json = json.dumps(metadata) if metadata else None
+            
+            if existing:
+                # Only update if new score is better
+                if quality_score > existing['quality_score']:
+                    cursor.execute("""
+                        UPDATE memories 
+                        SET solution = %s, quality_score = %s, task_embedding = %s, metadata = %s
+                        WHERE task_hash = %s
+                    """, (
+                        solution,
+                        quality_score,
+                        task_embedding_json,
+                        metadata_json,
+                        task_hash
+                    ))
+            else:
+                # Insert new memory
                 cursor.execute("""
-                    UPDATE memories 
-                    SET solution = ?, quality_score = ?, task_embedding = ?, metadata = ?
-                    WHERE task_hash = ?
+                    INSERT INTO memories (task_hash, task, task_embedding, solution, quality_score, metadata)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                 """, (
+                    task_hash,
+                    task,
+                    task_embedding_json,
                     solution,
                     quality_score,
-                    json.dumps(task_embedding) if task_embedding else None,
-                    json.dumps(metadata) if metadata else None,
-                    task_hash
+                    metadata_json
                 ))
-        else:
-            # Insert new memory
-            cursor.execute("""
-                INSERT INTO memories (task_hash, task, task_embedding, solution, quality_score, metadata)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (
-                task_hash,
-                task,
-                json.dumps(task_embedding) if task_embedding else None,
-                solution,
-                quality_score,
-                json.dumps(metadata) if metadata else None
-            ))
-        
-        conn.commit()
-        conn.close()
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            print(f"Error storing memory: {e}")
+            raise
     
     def retrieve_similar(
         self,
@@ -101,56 +134,70 @@ class Smriti:
         task_lower = task.lower()
         task_words = set(task_lower.split())
         
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            SELECT task, solution, quality_score, metadata
-            FROM memories
-            WHERE quality_score >= ?
-            ORDER BY quality_score DESC
-            LIMIT ?
-        """, (min_score, limit * 2))  # Get more, then filter
-        
-        results = cursor.fetchall()
-        conn.close()
-        
-        # Simple similarity scoring
-        similar = []
-        for stored_task, solution, score, metadata in results:
-            stored_words = set(stored_task.lower().split())
-            # Jaccard similarity
-            intersection = len(task_words & stored_words)
-            union = len(task_words | stored_words)
-            similarity = intersection / union if union > 0 else 0
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
             
-            if similarity > 0.2:  # Threshold for similarity
-                similar.append({
-                    "task": stored_task,
-                    "solution": solution,
-                    "quality_score": score,
-                    "similarity": similarity,
-                    "metadata": json.loads(metadata) if metadata else {}
-                })
-        
-        # Sort by similarity and score, return top results
-        similar.sort(key=lambda x: (x["similarity"], x["quality_score"]), reverse=True)
-        return similar[:limit]
+            cursor.execute("""
+                SELECT task, solution, quality_score, metadata
+                FROM memories
+                WHERE quality_score >= %s
+                ORDER BY quality_score DESC
+                LIMIT %s
+            """, (min_score, limit * 2))  # Get more, then filter
+            
+            results = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            # Simple similarity scoring
+            similar = []
+            for row in results:
+                stored_task = row['task']
+                solution = row['solution']
+                score = row['quality_score']
+                metadata = row['metadata']
+                
+                stored_words = set(stored_task.lower().split())
+                # Jaccard similarity
+                intersection = len(task_words & stored_words)
+                union = len(task_words | stored_words)
+                similarity = intersection / union if union > 0 else 0
+                
+                if similarity > 0.2:  # Threshold for similarity
+                    similar.append({
+                        "task": stored_task,
+                        "solution": solution,
+                        "quality_score": score,
+                        "similarity": similarity,
+                        "metadata": json.loads(metadata) if metadata else {}
+                    })
+            
+            # Sort by similarity and score, return top results
+            similar.sort(key=lambda x: (x["similarity"], x["quality_score"]), reverse=True)
+            return similar[:limit]
+        except Exception as e:
+            print(f"Error retrieving similar memories: {e}")
+            return []
     
     def get_best_examples(self, limit: int = 5) -> List[str]:
         """Get the best solutions regardless of similarity."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            SELECT solution
-            FROM memories
-            ORDER BY quality_score DESC
-            LIMIT ?
-        """, (limit,))
-        
-        results = [row[0] for row in cursor.fetchall()]
-        conn.close()
-        
-        return results
-
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT solution
+                FROM memories
+                ORDER BY quality_score DESC
+                LIMIT %s
+            """, (limit,))
+            
+            results = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            return [row['solution'] for row in results]
+        except Exception as e:
+            print(f"Error retrieving best examples: {e}")
+            return []
